@@ -133,8 +133,8 @@ mod tests {
     #[test]
     fn test_notify() {
         let notify = Arc::new(Notify::new());
-        let notified = notify.notified();
         for _ in 0..2 {
+            let notified = notify.notified();
             let modified = Arc::new(Mutex::new(false));
             std::thread::scope(|s| {
                 for _ in 0..2 {
@@ -148,8 +148,8 @@ mod tests {
                     });
                 }
                 s.spawn(|| {
-                    *modified.lock().unwrap() = true;
                     std::thread::sleep(Duration::from_secs_f64(0.5));
+                    *modified.lock().unwrap() = true;
                     notify.notify_all();
                 });
                 for _ in 0..2 {
