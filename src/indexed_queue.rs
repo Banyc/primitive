@@ -111,7 +111,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_indexed_queue() {
+    fn test_enqueue_dequeue() {
         let mut queue = IndexedQueue::new();
         let index_0 = queue.enqueue(0);
         {
@@ -141,6 +141,22 @@ mod tests {
             assert_eq!(*queue.get(index_1).unwrap(), 1);
         }
         assert_eq!(queue.dequeue().unwrap(), 1);
+        assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut queue = IndexedQueue::new();
+        let index_0 = queue.enqueue(0);
+        let index_1 = queue.enqueue(1);
+        let index_2 = queue.enqueue(2);
+        queue.remove(index_0).unwrap();
+        assert_eq!(queue.len(), 2);
+        queue.remove(index_1).unwrap();
+        assert_eq!(queue.len(), 1);
+        assert_eq!(*queue.front_mut().unwrap(), 2);
+        assert_eq!(queue.dequeue().unwrap(), 2);
+        assert!(queue.get(index_2).is_none());
         assert!(queue.is_empty());
     }
 }
