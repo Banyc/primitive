@@ -100,11 +100,23 @@ impl<T> Default for IndexedQueue<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct QueueIndex {
     start: u64,
     offset: usize,
 }
+impl QueueIndex {
+    fn canonical(&self) -> u64 {
+        let offset = u64::try_from(self.offset).unwrap();
+        self.start.wrapping_add(offset)
+    }
+}
+impl PartialEq for QueueIndex {
+    fn eq(&self, other: &Self) -> bool {
+        self.canonical() == other.canonical()
+    }
+}
+impl Eq for QueueIndex {}
 
 #[cfg(test)]
 mod tests {
