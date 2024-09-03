@@ -16,7 +16,9 @@ impl<T> IndexedQueue<T> {
     }
     pub fn clear(&mut self) {
         let queue_len = self.queue.len();
-        self.start += u64::try_from(queue_len).unwrap();
+        let queue_len = u64::try_from(queue_len).unwrap();
+        let new_start = self.start.wrapping_add(queue_len);
+        self.start = new_start;
         self.len = 0;
     }
 
@@ -31,11 +33,11 @@ impl<T> IndexedQueue<T> {
     }
     pub fn dequeue(&mut self) -> Option<T> {
         while let Some(entry) = self.queue.pop_front() {
-            self.start += 1;
-            self.len -= 1;
+            self.start = self.start.wrapping_add(1);
             let Some(value) = entry else {
                 continue;
             };
+            self.len -= 1;
             return Some(value);
         }
         None
@@ -50,7 +52,7 @@ impl<T> IndexedQueue<T> {
                 break;
             }
             self.queue.pop_front();
-            self.start += 1;
+            self.start = self.start.wrapping_add(1);
         }
         self.queue.front_mut().map(|entry| entry.as_mut().unwrap())
     }
@@ -58,8 +60,11 @@ impl<T> IndexedQueue<T> {
     pub fn remove(&mut self, index: QueueIndex) -> Option<T> {
         let index = self.local_index(index)?;
         let entry = self.queue.get_mut(index).unwrap();
-        self.len -= 1;
-        entry.take()
+        let value = entry.take();
+        if value.is_some() {
+            self.len -= 1;
+        }
+        value
     }
     pub fn get(&self, index: QueueIndex) -> Option<&T> {
         let index = self.local_index(index)?;
@@ -83,7 +88,7 @@ impl<T> IndexedQueue<T> {
     }
 
     pub fn len(&self) -> usize {
-        self.queue.len()
+        self.len
     }
     pub fn is_empty(&self) -> bool {
         self.len() == 0
