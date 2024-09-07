@@ -1,3 +1,5 @@
+use crate::Len;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitSet {
     integers: Vec<usize>,
@@ -16,14 +18,6 @@ impl BitSet {
     #[must_use]
     pub fn capacity(&self) -> usize {
         self.integers.len() * core::mem::size_of::<usize>()
-    }
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.count
-    }
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 
     pub fn clear_all(&mut self) {
@@ -59,6 +53,11 @@ impl BitSet {
         self.bit_op(index, |integer, pos| integer ^ pos);
     }
 }
+impl Len for BitSet {
+    fn len(&self) -> usize {
+        self.count
+    }
+}
 
 fn integer_index(bit_index: usize) -> usize {
     bit_index / core::mem::size_of::<usize>()
@@ -69,6 +68,8 @@ fn bit_offset(bit_index: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use crate::LenExt;
+
     use super::*;
 
     #[test]

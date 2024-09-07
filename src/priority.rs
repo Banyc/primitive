@@ -5,6 +5,8 @@ use std::{
 
 use thiserror::Error;
 
+use crate::Len;
+
 /// The lower the priority number, the higher the priority
 #[derive(Debug, Clone)]
 pub struct Queue<T, const P: usize> {
@@ -13,6 +15,7 @@ pub struct Queue<T, const P: usize> {
     timeout: Option<Duration>,
 }
 impl<T, const P: usize> Queue<T, P> {
+    #[must_use]
     pub fn new(cap: usize, timeout: Option<Duration>) -> Self {
         let queues = (0..P)
             .map(|_| VecDeque::new())
@@ -26,16 +29,12 @@ impl<T, const P: usize> Queue<T, P> {
         }
     }
 
+    #[must_use]
     pub fn capacity(&self) -> usize {
         self.cap
     }
-    pub fn len(&self) -> usize {
-        self.queues.iter().map(|q| q.len()).sum()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 
+    #[must_use]
     fn pop_one_timed_out(&mut self, now: Instant) -> Option<Entry<T>> {
         let timeout = self.timeout?;
         for queue in self.queues.iter_mut().rev() {
@@ -84,6 +83,11 @@ impl<T, const P: usize> Queue<T, P> {
             }
         }
         None
+    }
+}
+impl<T, const P: usize> Len for Queue<T, P> {
+    fn len(&self) -> usize {
+        self.queues.iter().map(|q| q.len()).sum()
     }
 }
 

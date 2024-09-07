@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use crate::Len;
+
 #[derive(Debug, Clone)]
 pub struct IndexedQueue<T> {
     queue: VecDeque<Option<T>>,
@@ -22,6 +24,7 @@ impl<T> IndexedQueue<T> {
         self.count = 0;
     }
 
+    #[must_use]
     pub fn enqueue(&mut self, value: T) -> QueueIndex {
         let new_index = self.queue.len();
         self.queue.push_back(Some(value));
@@ -43,6 +46,7 @@ impl<T> IndexedQueue<T> {
         None
     }
 
+    #[must_use]
     pub fn front_mut(&mut self) -> Option<&mut T> {
         loop {
             let Some(front) = self.queue.front() else {
@@ -66,16 +70,19 @@ impl<T> IndexedQueue<T> {
         }
         value
     }
+    #[must_use]
     pub fn get(&self, index: QueueIndex) -> Option<&T> {
         let index = self.local_index(index)?;
         let entry = self.queue.get(index).unwrap();
         entry.as_ref()
     }
+    #[must_use]
     pub fn get_mut(&mut self, index: QueueIndex) -> Option<&mut T> {
         let index = self.local_index(index)?;
         let entry = self.queue.get_mut(index).unwrap();
         entry.as_mut()
     }
+    #[must_use]
     pub fn local_index(&self, index: QueueIndex) -> Option<usize> {
         let start_diff = self.start.wrapping_sub(index.start);
         let start_diff = usize::try_from(start_diff).ok()?;
@@ -86,17 +93,15 @@ impl<T> IndexedQueue<T> {
             None
         }
     }
-
-    pub fn len(&self) -> usize {
-        self.count
-    }
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 }
 impl<T> Default for IndexedQueue<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+impl<T> Len for IndexedQueue<T> {
+    fn len(&self) -> usize {
+        self.count
     }
 }
 
@@ -106,6 +111,7 @@ pub struct QueueIndex {
     offset: usize,
 }
 impl QueueIndex {
+    #[must_use]
     fn canonical(&self) -> u64 {
         let offset = u64::try_from(self.offset).unwrap();
         self.start.wrapping_add(offset)
@@ -120,6 +126,8 @@ impl Eq for QueueIndex {}
 
 #[cfg(test)]
 mod tests {
+    use crate::LenExt;
+
     use super::*;
 
     #[test]
