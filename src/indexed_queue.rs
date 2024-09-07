@@ -4,14 +4,14 @@ use std::collections::VecDeque;
 pub struct IndexedQueue<T> {
     queue: VecDeque<Option<T>>,
     start: u64,
-    len: usize,
+    count: usize,
 }
 impl<T> IndexedQueue<T> {
     pub fn new() -> Self {
         Self {
             queue: VecDeque::new(),
             start: 0,
-            len: 0,
+            count: 0,
         }
     }
     pub fn clear(&mut self) {
@@ -19,13 +19,13 @@ impl<T> IndexedQueue<T> {
         let queue_len = u64::try_from(queue_len).unwrap();
         let new_start = self.start.wrapping_add(queue_len);
         self.start = new_start;
-        self.len = 0;
+        self.count = 0;
     }
 
     pub fn enqueue(&mut self, value: T) -> QueueIndex {
         let new_index = self.queue.len();
         self.queue.push_back(Some(value));
-        self.len += 1;
+        self.count += 1;
         QueueIndex {
             start: self.start,
             offset: new_index,
@@ -37,7 +37,7 @@ impl<T> IndexedQueue<T> {
             let Some(value) = entry else {
                 continue;
             };
-            self.len -= 1;
+            self.count -= 1;
             return Some(value);
         }
         None
@@ -62,7 +62,7 @@ impl<T> IndexedQueue<T> {
         let entry = self.queue.get_mut(index).unwrap();
         let value = entry.take();
         if value.is_some() {
-            self.len -= 1;
+            self.count -= 1;
         }
         value
     }
@@ -88,7 +88,7 @@ impl<T> IndexedQueue<T> {
     }
 
     pub fn len(&self) -> usize {
-        self.len
+        self.count
     }
     pub fn is_empty(&self) -> bool {
         self.len() == 0
