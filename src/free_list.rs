@@ -27,6 +27,12 @@ impl<T> FreeList<T> for DenseFreeList<T> {
         let index = self.local_index(index)?;
         Some(&mut self.data[index].value)
     }
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (usize, &'a T)>
+    where
+        T: 'a,
+    {
+        self.data.iter().map(|data| (data.user_index, &data.value))
+    }
 
     fn insert(&mut self, value: T) -> usize {
         let index = self.data.len();
@@ -91,6 +97,15 @@ impl<T> FreeList<T> for SparseFreeList<T> {
     fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         self.data.get_mut(index).and_then(|data| data.as_mut())
     }
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (usize, &'a T)>
+    where
+        T: 'a,
+    {
+        self.data.iter().enumerate().filter_map(|(index, data)| {
+            let data = data.as_ref()?;
+            Some((index, data))
+        })
+    }
 
     fn insert(&mut self, value: T) -> usize {
         self.count += 1;
@@ -120,6 +135,9 @@ pub trait FreeList<T>: Len {
     fn get(&self, index: usize) -> Option<&T>;
     #[must_use]
     fn get_mut(&mut self, index: usize) -> Option<&mut T>;
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (usize, &'a T)>
+    where
+        T: 'a;
 
     #[must_use]
     fn insert(&mut self, value: T) -> usize;
@@ -148,12 +166,14 @@ mod tests {
         let i_0 = l.insert(0);
         assert_eq!(l.len(), 1);
         let i_1 = l.insert(1);
+        assert_eq!(l.iter().count(), 2);
         assert_eq!(l.len(), 2);
         assert_eq!(*l.get(i_0).unwrap(), 0);
         assert_eq!(*l.get(i_1).unwrap(), 1);
         assert_eq!(l.remove(i_0).unwrap(), 0);
         assert!(l.get(i_0).is_none());
         assert!(l.get(i_1).is_some());
+        assert_eq!(l.iter().count(), 1);
         assert_eq!(l.len(), 1);
         assert_eq!(l.remove(i_1).unwrap(), 1);
         assert!(l.get(i_1).is_none());
