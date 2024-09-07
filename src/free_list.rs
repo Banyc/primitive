@@ -33,6 +33,14 @@ impl<T> FreeList<T> for DenseFreeList<T> {
     {
         self.data.iter().map(|data| (data.user_index, &data.value))
     }
+    fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (usize, &'a mut T)>
+    where
+        T: 'a,
+    {
+        self.data
+            .iter_mut()
+            .map(|data| (data.user_index, &mut data.value))
+    }
 
     fn insert(&mut self, value: T) -> usize {
         let index = self.data.len();
@@ -51,6 +59,10 @@ impl<T> FreeList<T> for DenseFreeList<T> {
             *i = local_index;
         }
         Some(value)
+    }
+    fn clear(&mut self) {
+        self.data.clear();
+        self.index.clear();
     }
 }
 impl<T> DenseFreeList<T> {
@@ -106,6 +118,18 @@ impl<T> FreeList<T> for SparseFreeList<T> {
             Some((index, data))
         })
     }
+    fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (usize, &'a mut T)>
+    where
+        T: 'a,
+    {
+        self.data
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(index, data)| {
+                let data = data.as_mut()?;
+                Some((index, data))
+            })
+    }
 
     fn insert(&mut self, value: T) -> usize {
         self.count += 1;
@@ -123,7 +147,13 @@ impl<T> FreeList<T> for SparseFreeList<T> {
         self.free.push(index);
         Some(value)
     }
+    fn clear(&mut self) {
+        self.data.clear();
+        self.free.clear();
+        self.count = 0;
+    }
 }
+
 impl<T> Len for SparseFreeList<T> {
     fn len(&self) -> usize {
         self.count
@@ -138,10 +168,14 @@ pub trait FreeList<T>: Len {
     fn iter<'a>(&'a self) -> impl Iterator<Item = (usize, &'a T)>
     where
         T: 'a;
+    fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (usize, &'a mut T)>
+    where
+        T: 'a;
 
     #[must_use]
     fn insert(&mut self, value: T) -> usize;
     fn remove(&mut self, index: usize) -> Option<T>;
+    fn clear(&mut self);
 }
 
 #[cfg(test)]

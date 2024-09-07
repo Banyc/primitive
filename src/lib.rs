@@ -3,6 +3,7 @@
 extern crate test;
 
 pub mod bit_set;
+pub mod dense_hash_map;
 pub mod free_list;
 pub mod indexed_queue;
 pub mod notify;
