@@ -2,6 +2,7 @@
 #[cfg(feature = "nightly")]
 extern crate test;
 
+pub mod bit_set;
 pub mod indexed_queue;
 pub mod notify;
 pub mod priority;
