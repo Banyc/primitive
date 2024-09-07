@@ -5,6 +5,9 @@ use crate::{
     Len,
 };
 
+/// vs. [`indexmap::IndexMap`]:
+/// - [`Self::values()`]: basically the same
+/// - others: always slower
 #[derive(Debug, Clone)]
 pub struct DenseHashMap<K, V> {
     data: DenseFreeList<V>,
@@ -27,9 +30,7 @@ impl<K, V> DenseHashMap<K, V>
 where
     K: Eq + core::hash::Hash,
 {
-    /// vs. [`std::collections::HashMap::insert()`]:
-    /// - small `V`: slower
-    /// - big `V`: faster, lower variance
+    /// often slower than [`std::collections::HashMap::insert()`]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let Some(&index) = self.index.get(&key) else {
             let index = self.data.insert(value);
@@ -128,6 +129,8 @@ mod tests {
 mod benches {
     use std::hint::black_box;
 
+    use indexmap::IndexMap;
+
     use super::*;
 
     const N: usize = 2 << 16;
@@ -167,6 +170,11 @@ mod benches {
         let mut m = DenseHashMap::new();
         get!(m, bencher);
     }
+    #[bench]
+    fn bench_get_index_map(bencher: &mut test::Bencher) {
+        let mut m = IndexMap::new();
+        get!(m, bencher);
+    }
 
     macro_rules! iter {
         ($m: ident, $bencher: ident) => {
@@ -190,28 +198,65 @@ mod benches {
         let mut m = DenseHashMap::new();
         iter!(m, bencher);
     }
+    #[bench]
+    fn bench_iter_index_map(bencher: &mut test::Bencher) {
+        let mut m = IndexMap::new();
+        iter!(m, bencher);
+    }
 
-    macro_rules! insert {
+    macro_rules! insert_remove {
         ($m: ident, $bencher: ident) => {
             $bencher.iter(|| {
                 for i in 0..N {
                     $m.insert(i, Value::new());
                 }
                 for i in 0..N {
+                    #[allow(deprecated)]
                     $m.remove(&i);
                 }
             });
         };
     }
     #[bench]
-    fn bench_insert_std(bencher: &mut test::Bencher) {
+    fn bench_insert_remove_std(bencher: &mut test::Bencher) {
         let mut m = HashMap::new();
-        insert!(m, bencher);
+        insert_remove!(m, bencher);
     }
     #[bench]
-    fn bench_insert_dense(bencher: &mut test::Bencher) {
+    fn bench_insert_remove_dense(bencher: &mut test::Bencher) {
         let mut m = DenseHashMap::new();
-        insert!(m, bencher);
+        insert_remove!(m, bencher);
+    }
+    #[bench]
+    fn bench_insert_remove_index_map(bencher: &mut test::Bencher) {
+        let mut m = IndexMap::new();
+        insert_remove!(m, bencher);
+    }
+
+    macro_rules! insert_clear {
+        ($m: ident, $bencher: ident) => {
+            $bencher.iter(|| {
+                for i in 0..N {
+                    $m.insert(i, Value::new());
+                }
+                $m.clear();
+            });
+        };
+    }
+    #[bench]
+    fn bench_insert_clear_std(bencher: &mut test::Bencher) {
+        let mut m = HashMap::new();
+        insert_clear!(m, bencher);
+    }
+    #[bench]
+    fn bench_insert_clear_dense(bencher: &mut test::Bencher) {
+        let mut m = DenseHashMap::new();
+        insert_clear!(m, bencher);
+    }
+    #[bench]
+    fn bench_insert_clear_index_map(bencher: &mut test::Bencher) {
+        let mut m = IndexMap::new();
+        insert_clear!(m, bencher);
     }
 
     macro_rules! values {
@@ -234,6 +279,11 @@ mod benches {
     #[bench]
     fn bench_values_dense(bencher: &mut test::Bencher) {
         let mut m = DenseHashMap::new();
+        values!(m, bencher);
+    }
+    #[bench]
+    fn bench_values_index_map(bencher: &mut test::Bencher) {
+        let mut m = IndexMap::new();
         values!(m, bencher);
     }
 }

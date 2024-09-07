@@ -6,5 +6,8 @@ edition = "2021"
 [dependencies]
 thiserror = "1"
 
+[dev-dependencies]
+indexmap = "2"
+
 [features]
 nightly = []
