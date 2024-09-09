@@ -6,11 +6,18 @@ pub mod bit_set;
 pub mod dense_hash_map;
 pub mod free_list;
 pub mod indexed_queue;
+pub mod non_max;
 pub mod notify;
 pub mod priority;
 pub mod ring_seq;
+pub mod sparse_set;
 pub mod static_borrow_vec;
 pub mod vec_seg;
+
+pub trait Capacity: Len {
+    #[must_use]
+    fn capacity(&self) -> usize;
+}
 
 #[allow(clippy::len_without_is_empty)]
 pub trait Len {

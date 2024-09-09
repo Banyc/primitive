@@ -5,7 +5,7 @@ use std::{
 
 use thiserror::Error;
 
-use crate::{Clear, Len};
+use crate::{Capacity, Clear, Len};
 
 /// The lower the priority number, the higher the priority
 #[derive(Debug, Clone)]
@@ -27,11 +27,6 @@ impl<T, const P: usize> Queue<T, P> {
             queues,
             timeout,
         }
-    }
-
-    #[must_use]
-    pub fn capacity(&self) -> usize {
-        self.cap
     }
 
     #[must_use]
@@ -90,6 +85,12 @@ impl<T, const P: usize> Len for Queue<T, P> {
         self.queues.iter().map(|q| q.len()).sum()
     }
 }
+impl<T, const P: usize> Capacity for Queue<T, P> {
+    fn capacity(&self) -> usize {
+        self.cap
+    }
+}
+
 impl<T, const P: usize> Clear for Queue<T, P> {
     fn clear(&mut self) {
         for queue in &mut self.queues {
