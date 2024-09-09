@@ -24,3 +24,7 @@ pub trait LenExt: Len {
     }
 }
 impl<T: Len> LenExt for T {}
+
+pub trait Clear {
+    fn clear(&mut self);
+}

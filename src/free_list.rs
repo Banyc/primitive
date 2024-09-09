@@ -1,4 +1,4 @@
-use crate::Len;
+use crate::{Clear, Len};
 
 #[derive(Debug, Clone)]
 pub struct DenseFreeList<T> {
@@ -64,10 +64,6 @@ impl<T> FreeList<T> for DenseFreeList<T> {
         }
         Some(value)
     }
-    fn clear(&mut self) {
-        self.data.clear();
-        self.index.clear();
-    }
 }
 impl<T> DenseFreeList<T> {
     #[must_use]
@@ -78,6 +74,12 @@ impl<T> DenseFreeList<T> {
 impl<T> Len for DenseFreeList<T> {
     fn len(&self) -> usize {
         self.data.len()
+    }
+}
+impl<T> Clear for DenseFreeList<T> {
+    fn clear(&mut self) {
+        self.data.clear();
+        self.index.clear();
     }
 }
 #[derive(Debug, Clone)]
@@ -155,6 +157,13 @@ impl<T> FreeList<T> for SparseFreeList<T> {
         self.free.push(index);
         Some(value)
     }
+}
+impl<T> Len for SparseFreeList<T> {
+    fn len(&self) -> usize {
+        self.count
+    }
+}
+impl<T> Clear for SparseFreeList<T> {
     fn clear(&mut self) {
         self.data.clear();
         self.free.clear();
@@ -162,13 +171,7 @@ impl<T> FreeList<T> for SparseFreeList<T> {
     }
 }
 
-impl<T> Len for SparseFreeList<T> {
-    fn len(&self) -> usize {
-        self.count
-    }
-}
-
-pub trait FreeList<T>: Len {
+pub trait FreeList<T>: Len + Clear {
     #[must_use]
     fn get(&self, index: usize) -> Option<&T>;
     #[must_use]
@@ -183,7 +186,6 @@ pub trait FreeList<T>: Len {
     #[must_use]
     fn insert(&mut self, value: T) -> usize;
     fn remove(&mut self, index: usize) -> Option<T>;
-    fn clear(&mut self);
 }
 
 #[cfg(test)]

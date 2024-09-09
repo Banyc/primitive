@@ -1,4 +1,4 @@
-use crate::Len;
+use crate::{Clear, Len};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitSet {
@@ -20,10 +20,6 @@ impl BitSet {
         self.integers.len() * core::mem::size_of::<usize>()
     }
 
-    pub fn clear_all(&mut self) {
-        self.integers.iter_mut().for_each(|x| *x = 0);
-        self.count = 0;
-    }
     #[must_use]
     pub fn get(&self, index: usize) -> bool {
         let integer = self.integers[integer_index(index)];
@@ -46,7 +42,7 @@ impl BitSet {
     pub fn set(&mut self, index: usize) {
         self.bit_op(index, |integer, pos| integer | pos);
     }
-    pub fn clear(&mut self, index: usize) {
+    pub fn clear_bit(&mut self, index: usize) {
         self.bit_op(index, |integer, pos| integer & !pos);
     }
     pub fn toggle(&mut self, index: usize) {
@@ -56,6 +52,12 @@ impl BitSet {
 impl Len for BitSet {
     fn len(&self) -> usize {
         self.count
+    }
+}
+impl Clear for BitSet {
+    fn clear(&mut self) {
+        self.integers.iter_mut().for_each(|x| *x = 0);
+        self.count = 0;
     }
 }
 

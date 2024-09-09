@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     free_list::{DenseFreeList, FreeList},
-    Len,
+    Clear, Len,
 };
 
 /// vs. [`indexmap::IndexMap`]:
@@ -53,10 +53,6 @@ where
         let index = self.index.remove(key)?;
         self.data.remove(index)
     }
-    pub fn clear(&mut self) {
-        self.data.clear();
-        self.index.clear();
-    }
 
     /// vs. [`std::collections::HashMap::get()`]:
     /// - small `V`: slower
@@ -105,6 +101,12 @@ impl<K, V> Len for DenseHashMap<K, V> {
     fn len(&self) -> usize {
         assert_eq!(self.data.len(), self.index.len());
         self.data.len()
+    }
+}
+impl<K, V> Clear for DenseHashMap<K, V> {
+    fn clear(&mut self) {
+        self.data.clear();
+        self.index.clear();
     }
 }
 

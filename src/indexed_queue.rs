@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::Len;
+use crate::{Clear, Len};
 
 #[derive(Debug, Clone)]
 pub struct IndexedQueue<T> {
@@ -16,13 +16,6 @@ impl<T> IndexedQueue<T> {
             start: 0,
             count: 0,
         }
-    }
-    pub fn clear(&mut self) {
-        let queue_len = self.queue.len();
-        let queue_len = u64::try_from(queue_len).unwrap();
-        let new_start = self.start.wrapping_add(queue_len);
-        self.start = new_start;
-        self.count = 0;
     }
 
     #[must_use]
@@ -103,6 +96,15 @@ impl<T> Default for IndexedQueue<T> {
 impl<T> Len for IndexedQueue<T> {
     fn len(&self) -> usize {
         self.count
+    }
+}
+impl<T> Clear for IndexedQueue<T> {
+    fn clear(&mut self) {
+        let queue_len = self.queue.len();
+        let queue_len = u64::try_from(queue_len).unwrap();
+        let new_start = self.start.wrapping_add(queue_len);
+        self.start = new_start;
+        self.count = 0;
     }
 }
 

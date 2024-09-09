@@ -5,7 +5,7 @@ use std::{
 
 use thiserror::Error;
 
-use crate::Len;
+use crate::{Clear, Len};
 
 /// The lower the priority number, the higher the priority
 #[derive(Debug, Clone)]
@@ -90,6 +90,13 @@ impl<T, const P: usize> Len for Queue<T, P> {
         self.queues.iter().map(|q| q.len()).sum()
     }
 }
+impl<T, const P: usize> Clear for Queue<T, P> {
+    fn clear(&mut self) {
+        for queue in &mut self.queues {
+            queue.clear();
+        }
+    }
+}
 
 #[derive(Debug, Clone, Error)]
 pub enum PushError<T> {
@@ -103,17 +110,21 @@ pub struct Entry<T> {
     insert: Instant,
 }
 impl<T> Entry<T> {
+    #[must_use]
     pub fn new(item: T, insert: Instant) -> Self {
         Self { item, insert }
     }
 
+    #[must_use]
     pub fn insertion_time(&self) -> Instant {
         self.insert
     }
+    #[must_use]
     pub fn is_timed_out(&self, timeout: Duration, now: Instant) -> bool {
         timeout < now.duration_since(self.insertion_time())
     }
 
+    #[must_use]
     pub fn into_item(self) -> T {
         self.item
     }
