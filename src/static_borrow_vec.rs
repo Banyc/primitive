@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct EmptyBorrowVec<T: 'static> {
     empty: Option<Vec<&'static T>>,
 }
@@ -25,6 +26,7 @@ impl<T: 'static> Default for EmptyBorrowVec<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct BorrowVecGuard<'guard, 't, T: 'static> {
     parent: &'guard mut EmptyBorrowVec<T>,
     vec: Option<Vec<&'t T>>,
@@ -46,6 +48,7 @@ impl<'guard, 't, T> Drop for BorrowVecGuard<'guard, 't, T> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct BorrowVec<'t, T> {
     vec: Vec<&'t T>,
 }
