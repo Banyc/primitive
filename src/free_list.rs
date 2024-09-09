@@ -224,3 +224,145 @@ mod tests {
         assert!(l.is_empty());
     }
 }
+
+#[cfg(test)]
+mod benches {
+    use std::hint::black_box;
+
+    use slotmap::SlotMap;
+
+    use super::*;
+
+    const N: usize = 2 << 16;
+    const VALUE_SIZE: usize = 2 << 5;
+
+    struct Value {
+        #[allow(dead_code)]
+        buf: [u8; VALUE_SIZE],
+    }
+    impl Value {
+        pub fn new() -> Self {
+            Self {
+                buf: [0; VALUE_SIZE],
+            }
+        }
+    }
+
+    macro_rules! insert_delete {
+        ($bencher: ident, $l: ident) => {
+            $bencher.iter(|| {
+                let mut indices = vec![];
+                for _ in 0..N {
+                    let index = $l.insert(Value::new());
+                    indices.push(index);
+                }
+                for index in indices {
+                    $l.remove(index);
+                }
+            });
+        };
+    }
+    #[bench]
+    fn bench_insert_delete_sparse(bencher: &mut test::Bencher) {
+        let mut l = SparseFreeList::new();
+        insert_delete!(bencher, l);
+    }
+    #[bench]
+    fn bench_insert_delete_dense(bencher: &mut test::Bencher) {
+        let mut l = DenseFreeList::new();
+        insert_delete!(bencher, l);
+    }
+    #[bench]
+    fn bench_insert_delete_slot(bencher: &mut test::Bencher) {
+        let mut l = SlotMap::new();
+        insert_delete!(bencher, l);
+    }
+
+    macro_rules! insert_clear {
+        ($bencher: ident, $l: ident) => {
+            $bencher.iter(|| {
+                let mut indices = vec![];
+                for _ in 0..N {
+                    let index = $l.insert(Value::new());
+                    indices.push(index);
+                }
+                $l.clear();
+            });
+        };
+    }
+    #[bench]
+    fn bench_insert_clear_sparse(bencher: &mut test::Bencher) {
+        let mut l = SparseFreeList::new();
+        insert_clear!(bencher, l);
+    }
+    #[bench]
+    fn bench_insert_clear_dense(bencher: &mut test::Bencher) {
+        let mut l = DenseFreeList::new();
+        insert_clear!(bencher, l);
+    }
+    #[bench]
+    fn bench_insert_clear_slot(bencher: &mut test::Bencher) {
+        let mut l = SlotMap::new();
+        insert_clear!(bencher, l);
+    }
+
+    macro_rules! get {
+        ($bencher: ident, $l: ident) => {
+            let mut indices = vec![];
+            for _ in 0..N {
+                let index = $l.insert(Value::new());
+                indices.push(index);
+            }
+            $bencher.iter(|| {
+                for &index in &indices {
+                    black_box($l.get(index));
+                }
+            });
+        };
+    }
+    #[bench]
+    fn bench_get_sparse(bencher: &mut test::Bencher) {
+        let mut l = SparseFreeList::new();
+        get!(bencher, l);
+    }
+    #[bench]
+    fn bench_get_dense(bencher: &mut test::Bencher) {
+        let mut l = DenseFreeList::new();
+        get!(bencher, l);
+    }
+    #[bench]
+    fn bench_get_slot(bencher: &mut test::Bencher) {
+        let mut l = SlotMap::new();
+        get!(bencher, l);
+    }
+
+    macro_rules! iter {
+        ($bencher: ident, $l: ident) => {
+            let mut indices = vec![];
+            for _ in 0..N {
+                let index = $l.insert(Value::new());
+                indices.push(index);
+            }
+            $bencher.iter(|| {
+                for v in $l.iter() {
+                    black_box(v);
+                }
+            });
+        };
+    }
+    #[bench]
+    fn bench_iter_sparse(bencher: &mut test::Bencher) {
+        let mut l = SparseFreeList::new();
+        iter!(bencher, l);
+    }
+    #[bench]
+    fn bench_iter_dense(bencher: &mut test::Bencher) {
+        let mut l = DenseFreeList::new();
+        iter!(bencher, l);
+    }
+    #[bench]
+    fn bench_iter_slot(bencher: &mut test::Bencher) {
+        let mut l = SlotMap::new();
+        iter!(bencher, l);
+    }
+}
