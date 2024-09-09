@@ -256,7 +256,11 @@ mod benches {
                     let index = $l.insert(Value::new());
                     indices.push(index);
                 }
-                for index in indices {
+                let mut reverse = false;
+                for i in 0..indices.len() {
+                    let i = if reverse { indices.len() - 1 - i } else { i };
+                    reverse = !reverse;
+                    let index = indices[i];
                     $l.remove(index);
                 }
             });
@@ -314,7 +318,11 @@ mod benches {
                 indices.push(index);
             }
             $bencher.iter(|| {
-                for &index in &indices {
+                let mut reverse = false;
+                for i in 0..indices.len() {
+                    let i = if reverse { indices.len() - 1 - i } else { i };
+                    reverse = !reverse;
+                    let index = indices[i];
                     black_box($l.get(index));
                 }
             });

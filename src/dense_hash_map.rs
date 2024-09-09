@@ -30,7 +30,7 @@ impl<K, V> DenseHashMap<K, V>
 where
     K: Eq + core::hash::Hash,
 {
-    /// often slower than [`std::collections::HashMap::insert()`]
+    /// slower than [`std::collections::HashMap::insert()`]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let Some(&index) = self.index.get(&key) else {
             let index = self.data.insert(value);
@@ -42,9 +42,7 @@ where
         self.index.insert(key, index);
         Some(prev)
     }
-    /// vs. [`std::collections::HashMap::remove()`]:
-    /// - small `V`: slower
-    /// - big `V`: faster, lower variance
+    /// slower than [`std::collections::HashMap::remove()`]:
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
@@ -54,9 +52,7 @@ where
         self.data.remove(index)
     }
 
-    /// vs. [`std::collections::HashMap::get()`]:
-    /// - small `V`: slower
-    /// - big `V`: faster, lower variance
+    /// slower than [`std::collections::HashMap::get()`]:
     #[must_use]
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
@@ -66,9 +62,7 @@ where
         let index = *self.index.get(key)?;
         Some(self.data.get(index).unwrap())
     }
-    /// vs. [`std::collections::HashMap::get_mut()`]:
-    /// - small `V`: slower
-    /// - big `V`: faster, lower variance
+    /// slower than [`std::collections::HashMap::get_mut()`]:
     #[must_use]
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
@@ -158,7 +152,10 @@ mod benches {
                 $m.insert(i, Value::new());
             }
             $bencher.iter(|| {
+                let mut reverse = false;
                 for i in 0..N {
+                    let i = if reverse { N - 1 - i } else { i };
+                    reverse = !reverse;
                     black_box($m.get(&i));
                 }
             });
@@ -214,7 +211,10 @@ mod benches {
                 for i in 0..N {
                     $m.insert(i, Value::new());
                 }
+                let mut reverse = false;
                 for i in 0..N {
+                    let i = if reverse { N - 1 - i } else { i };
+                    reverse = !reverse;
                     #[allow(deprecated)]
                     $m.remove(&i);
                 }
