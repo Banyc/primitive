@@ -237,6 +237,42 @@ mod benches {
         insert_remove!(m, bencher);
     }
 
+    macro_rules! insert_iter_remove {
+        ($m: ident, $bencher: ident) => {
+            let n = (N as f64).sqrt().round() as usize;
+            $bencher.iter(|| {
+                for i in 0..n {
+                    $m.insert(i, Value::new());
+                }
+                let mut reverse = false;
+                for i in 0..n {
+                    for v in $m.iter() {
+                        black_box(v);
+                    }
+                    let i = if reverse { n - 1 - i } else { i };
+                    reverse = !reverse;
+                    #[allow(deprecated)]
+                    $m.remove(&i);
+                }
+            });
+        };
+    }
+    #[bench]
+    fn bench_insert_iter_remove_std(bencher: &mut test::Bencher) {
+        let mut m = HashMap::new();
+        insert_iter_remove!(m, bencher);
+    }
+    #[bench]
+    fn bench_insert_iter_remove_dense(bencher: &mut test::Bencher) {
+        let mut m = DenseHashMap::new();
+        insert_iter_remove!(m, bencher);
+    }
+    #[bench]
+    fn bench_insert_iter_remove_index_map(bencher: &mut test::Bencher) {
+        let mut m = IndexMap::new();
+        insert_iter_remove!(m, bencher);
+    }
+
     macro_rules! insert_clear {
         ($m: ident, $bencher: ident) => {
             $bencher.iter(|| {

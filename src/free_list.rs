@@ -248,7 +248,7 @@ mod benches {
         }
     }
 
-    macro_rules! insert_delete {
+    macro_rules! insert_remove {
         ($bencher: ident, $l: ident) => {
             $bencher.iter(|| {
                 let mut indices = vec![];
@@ -267,19 +267,57 @@ mod benches {
         };
     }
     #[bench]
-    fn bench_insert_delete_sparse(bencher: &mut test::Bencher) {
+    fn bench_insert_remove_sparse(bencher: &mut test::Bencher) {
         let mut l = SparseFreeList::new();
-        insert_delete!(bencher, l);
+        insert_remove!(bencher, l);
     }
     #[bench]
-    fn bench_insert_delete_dense(bencher: &mut test::Bencher) {
+    fn bench_insert_remove_dense(bencher: &mut test::Bencher) {
         let mut l = DenseFreeList::new();
-        insert_delete!(bencher, l);
+        insert_remove!(bencher, l);
     }
     #[bench]
-    fn bench_insert_delete_slot(bencher: &mut test::Bencher) {
+    fn bench_insert_remove_slot(bencher: &mut test::Bencher) {
         let mut l = SlotMap::new();
-        insert_delete!(bencher, l);
+        insert_remove!(bencher, l);
+    }
+
+    macro_rules! insert_iter_remove {
+        ($bencher: ident, $l: ident) => {
+            let n = (N as f64).sqrt().round() as usize;
+            $bencher.iter(|| {
+                let mut indices = vec![];
+                for _ in 0..n {
+                    let index = $l.insert(Value::new());
+                    indices.push(index);
+                }
+                let mut reverse = false;
+                for i in 0..indices.len() {
+                    for v in $l.iter() {
+                        black_box(v);
+                    }
+                    let i = if reverse { indices.len() - 1 - i } else { i };
+                    reverse = !reverse;
+                    let index = indices[i];
+                    $l.remove(index);
+                }
+            });
+        };
+    }
+    #[bench]
+    fn bench_insert_iter_remove_sparse(bencher: &mut test::Bencher) {
+        let mut l = SparseFreeList::new();
+        insert_iter_remove!(bencher, l);
+    }
+    #[bench]
+    fn bench_insert_iter_remove_dense(bencher: &mut test::Bencher) {
+        let mut l = DenseFreeList::new();
+        insert_iter_remove!(bencher, l);
+    }
+    #[bench]
+    fn bench_insert_iter_remove_slot(bencher: &mut test::Bencher) {
+        let mut l = SlotMap::new();
+        insert_iter_remove!(bencher, l);
     }
 
     macro_rules! insert_clear {
