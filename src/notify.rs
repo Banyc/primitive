@@ -68,6 +68,7 @@ struct WaitToken {
     blocker: Condvar,
 }
 impl WaitToken {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             notified: Mutex::new(false),
@@ -77,6 +78,7 @@ impl WaitToken {
     pub fn clear(&self) {
         *self.notified.lock().unwrap() = false;
     }
+    #[must_use]
     pub fn is_notified(&self) -> bool {
         *self.notified.lock().unwrap()
     }

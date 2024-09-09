@@ -7,7 +7,6 @@ use crate::{
 
 /// vs. [`indexmap::IndexMap`]:
 /// - [`Self::values()`]: basically the same
-/// - others: always slower
 #[derive(Debug, Clone)]
 pub struct DenseHashMap<K, V> {
     data: DenseFreeList<V>,
