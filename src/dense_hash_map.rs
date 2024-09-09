@@ -86,13 +86,13 @@ where
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.data.iter_mut().map(|(_, value)| value)
     }
-    pub fn keys(&self) -> impl Iterator<Item = &K> {
+    pub fn keys(&self) -> impl Iterator<Item = &K> + Clone {
         self.index.keys()
     }
     /// always slower than [`std::collections::HashMap::iter()`]
     ///
     /// Consider using [`Self::values()`] instead.
-    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> + Clone {
         let indices = self.index.iter();
         indices.map(|(k, &index)| (k, self.data.get(index).unwrap()))
     }
