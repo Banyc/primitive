@@ -1,5 +1,8 @@
 use crate::{Clear, Len};
 
+const BITS_PER_BYTE: usize = 8;
+const USIZE_BITS: usize = core::mem::size_of::<usize>() * BITS_PER_BYTE;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitSet {
     words: Vec<usize>,
@@ -8,7 +11,7 @@ pub struct BitSet {
 impl BitSet {
     #[must_use]
     pub fn new(bits: usize) -> Self {
-        let bytes = bits.div_ceil(bits);
+        let bytes = bits.div_ceil(BITS_PER_BYTE);
         let words = bytes.div_ceil(core::mem::size_of::<usize>());
         Self {
             words: vec![0; words],
@@ -17,7 +20,7 @@ impl BitSet {
     }
     #[must_use]
     pub fn capacity(&self) -> usize {
-        self.words.len() * core::mem::size_of::<usize>()
+        self.words.len() * USIZE_BITS
     }
 
     #[must_use]
@@ -68,11 +71,11 @@ struct BitOpArgs {
 
 #[must_use]
 fn word_index(bit_index: usize) -> usize {
-    bit_index / core::mem::size_of::<usize>()
+    bit_index / USIZE_BITS
 }
 #[must_use]
 fn bit_offset(bit_index: usize) -> usize {
-    bit_index % core::mem::size_of::<usize>()
+    bit_index % USIZE_BITS
 }
 
 #[cfg(test)]
@@ -89,5 +92,8 @@ mod tests {
         b.set(1);
         assert!(b.get(1));
         assert_eq!(b.len(), 1);
+        b.set(15);
+        assert!(b.get(15));
+        assert_eq!(b.len(), 2);
     }
 }
