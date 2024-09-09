@@ -8,6 +8,7 @@ pub mod free_list;
 pub mod indexed_queue;
 pub mod notify;
 pub mod priority;
+pub mod ring_seq;
 pub mod static_borrow_vec;
 pub mod vec_seg;
 
