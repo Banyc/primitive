@@ -3,18 +3,21 @@ pub struct EmptyBorrowVec<T: 'static> {
     empty: Option<Vec<&'static T>>,
 }
 impl<T: 'static> EmptyBorrowVec<T> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             empty: Some(vec![]),
         }
     }
 
+    #[must_use]
     pub fn take<'t>(self) -> BorrowVec<'t, T> {
         BorrowVec {
             vec: self.empty.unwrap(),
         }
     }
 
+    #[must_use]
     pub fn get_mut<'t>(&mut self) -> BorrowVecGuard<'_, 't, T> {
         let vec = Some(self.empty.take().unwrap());
         BorrowVecGuard { parent: self, vec }
@@ -32,10 +35,11 @@ pub struct BorrowVecGuard<'guard, 't, T: 'static> {
     vec: Option<Vec<&'t T>>,
 }
 impl<'guard, 't, T> BorrowVecGuard<'guard, 't, T> {
+    #[must_use]
     pub fn get(&self) -> &Vec<&T> {
         self.vec.as_ref().unwrap()
     }
-
+    #[must_use]
     pub fn get_mut(&mut self) -> &mut Vec<&'t T> {
         self.vec.as_mut().unwrap()
     }
@@ -54,21 +58,24 @@ pub struct BorrowVec<'t, T> {
 }
 impl<'t, T> BorrowVec<'t, T> {
     /// Erase the lifetime on `T` and reuse the inner [`Vec`] in the future.
+    #[must_use]
     pub fn clear(self) -> EmptyBorrowVec<T> {
         let empty = Some(empty(self.vec));
         EmptyBorrowVec { empty }
     }
 
+    #[must_use]
     pub fn get(&self) -> &Vec<&T> {
         &self.vec
     }
-
+    #[must_use]
     pub fn get_mut(&mut self) -> &mut Vec<&'t T> {
         &mut self.vec
     }
 }
 
 /// Ref: <https://users.rust-lang.org/t/cast-empty-vec-a-t-to-vec-static-t/66687/17>
+#[must_use]
 fn empty<T>(mut v: Vec<&T>) -> Vec<&'static T> {
     v.clear();
     v.into_iter()

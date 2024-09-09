@@ -9,6 +9,7 @@ pub struct IndexedQueue<T> {
     count: usize,
 }
 impl<T> IndexedQueue<T> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             queue: VecDeque::new(),

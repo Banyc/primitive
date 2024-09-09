@@ -31,10 +31,11 @@ pub struct Seq<T> {
 }
 
 impl<T> Seq<T> {
+    #[must_use]
     pub fn new(v: T) -> Self {
         Self { v }
     }
-
+    #[must_use]
     pub fn value(&self) -> &T {
         &self.v
     }
@@ -44,6 +45,7 @@ impl<T> Seq<T>
 where
     T: WrappingAdd,
 {
+    #[must_use]
     pub fn add(&self, n: T) -> Self {
         let v = self.v.wrapping_add(&n);
         Self { v }
@@ -54,6 +56,7 @@ impl<T> Seq<T>
 where
     T: WrappingSub,
 {
+    #[must_use]
     pub fn sub(&self, n: T) -> Self {
         let v = self.v.wrapping_sub(&n);
         Self { v }
@@ -64,10 +67,11 @@ impl<T> Seq<T>
 where
     T: Ord + WrappingSub + Zero + Copy + Bounded + One + Div<Output = T>,
 {
-    pub fn dist(a: &Self, b: &Self) -> T {
-        match Self::cmp(a, b) {
-            Ordering::Less => b.v.wrapping_sub(&a.v),
-            Ordering::Greater => a.v.wrapping_sub(&b.v),
+    #[must_use]
+    pub fn ord_dist(lo: &Self, hi: &Self) -> T {
+        match Self::cmp(lo, hi) {
+            Ordering::Less => hi.v.wrapping_sub(&lo.v),
+            Ordering::Greater => lo.v.wrapping_sub(&hi.v),
             Ordering::Equal => T::zero(),
         }
     }
@@ -77,6 +81,7 @@ impl<T> Seq<T>
 where
     T: Zero,
 {
+    #[must_use]
     pub fn zero() -> Self {
         Self { v: T::zero() }
     }
@@ -142,7 +147,7 @@ mod tests {
             let a = Seq::<T>::new(v);
             let b = a.add(T::one());
             let _c = b.sub(T::one());
-            let _dist = Seq::<T>::dist(&a, &b);
+            let _dist = Seq::<T>::ord_dist(&a, &b);
             let _zero = Seq::<T>::zero();
         }
         test::<u8>(2);
@@ -192,20 +197,20 @@ mod tests {
     fn sub_wraparound() {
         let a = Seq::new(0);
         let b = Seq::new(u32::MAX);
-        assert_eq!(Seq::dist(&a, &b), 1);
+        assert_eq!(Seq::ord_dist(&a, &b), 1);
     }
 
     #[test]
     fn sub_zero() {
         let a = Seq::new(1);
         let b = Seq::new(1);
-        assert_eq!(Seq::dist(&a, &b), 0);
+        assert_eq!(Seq::ord_dist(&a, &b), 0);
     }
 
     #[test]
     fn sub_no_wraparound() {
         let a = Seq::new(3);
         let b = Seq::new(1);
-        assert_eq!(Seq::dist(&a, &b), 2);
+        assert_eq!(Seq::ord_dist(&a, &b), 2);
     }
 }

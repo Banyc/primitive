@@ -12,6 +12,7 @@ struct CriticalNotify {
     pub reused_wait_tokens: Vec<Arc<WaitToken>>,
 }
 impl Notify {
+    #[must_use]
     pub fn new() -> Self {
         let state = CriticalNotify {
             wait_queue: IndexedQueue::new(),
@@ -22,6 +23,7 @@ impl Notify {
         }
     }
 
+    #[must_use]
     pub fn notified(&self) -> Notified<'_> {
         let mut state = self.state.lock().unwrap();
         let token = match state.reused_wait_tokens.pop() {
@@ -109,6 +111,7 @@ impl Notified<'_> {
         token.wait();
     }
 
+    #[must_use]
     pub fn is_notified(&self) -> bool {
         let state = self.notify.state.lock().unwrap();
         let Some(token) = state.wait_queue.get(self.index) else {

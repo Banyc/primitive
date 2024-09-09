@@ -14,6 +14,7 @@ pub struct DenseHashMap<K, V> {
     index: HashMap<K, usize>,
 }
 impl<K, V> DenseHashMap<K, V> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             data: DenseFreeList::new(),
@@ -61,6 +62,7 @@ where
     /// vs. [`std::collections::HashMap::get()`]:
     /// - small `V`: slower
     /// - big `V`: faster, lower variance
+    #[must_use]
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
@@ -72,6 +74,7 @@ where
     /// vs. [`std::collections::HashMap::get_mut()`]:
     /// - small `V`: slower
     /// - big `V`: faster, lower variance
+    #[must_use]
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
