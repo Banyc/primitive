@@ -225,6 +225,7 @@ mod tests {
     }
 }
 
+#[cfg(feature = "nightly")]
 #[cfg(test)]
 mod benches {
     use std::hint::black_box;

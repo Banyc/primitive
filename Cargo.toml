@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1"
 num-traits = "0.2"
 thiserror = "1"
 
@@ -12,4 +13,5 @@ indexmap = "2"
 slotmap = "1"
 
 [features]
+default = []
 nightly = []
