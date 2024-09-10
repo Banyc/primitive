@@ -284,7 +284,7 @@ mod benches {
 
     macro_rules! insert_iter_remove {
         ($bencher: ident, $l: ident) => {
-            let n = (N as f64).sqrt().round() as usize;
+            let n = ((N as f64).sqrt() / 2.).round() as usize;
             $bencher.iter(|| {
                 let mut indices = vec![];
                 for _ in 0..n {
