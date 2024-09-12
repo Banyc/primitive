@@ -7,6 +7,7 @@ pub mod dense_hash_map;
 pub mod dep_inj;
 pub mod free_list;
 pub mod indexed_queue;
+pub mod iter;
 pub mod non_max;
 pub mod notify;
 pub mod priority;
