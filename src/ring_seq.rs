@@ -26,11 +26,11 @@ impl SeqSpace for u64 {}
 impl SeqSpace for u128 {}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct Seq<T> {
+pub struct RingSeq<T> {
     v: T,
 }
 
-impl<T> Seq<T> {
+impl<T> RingSeq<T> {
     #[must_use]
     pub fn new(v: T) -> Self {
         Self { v }
@@ -41,7 +41,7 @@ impl<T> Seq<T> {
     }
 }
 
-impl<T> Seq<T>
+impl<T> RingSeq<T>
 where
     T: WrappingAdd,
 {
@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<T> Seq<T>
+impl<T> RingSeq<T>
 where
     T: WrappingSub,
 {
@@ -63,7 +63,7 @@ where
     }
 }
 
-impl<T> Seq<T>
+impl<T> RingSeq<T>
 where
     T: Ord + WrappingSub + Zero + Copy + Bounded + One + Div<Output = T>,
 {
@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<T> Seq<T>
+impl<T> RingSeq<T>
 where
     T: Zero,
 {
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<T> PartialOrd for Seq<T>
+impl<T> PartialOrd for RingSeq<T>
 where
     T: Eq
         + Sub<Output = T>
@@ -104,7 +104,7 @@ where
     }
 }
 
-impl<T> Ord for Seq<T>
+impl<T> Ord for RingSeq<T>
 where
     T: Eq
         + Sub<Output = T>
@@ -144,11 +144,11 @@ mod tests {
     #[test]
     fn seq_space_trait() {
         fn test<T: SeqSpace>(v: T) {
-            let a = Seq::<T>::new(v);
+            let a = RingSeq::<T>::new(v);
             let b = a.add(T::one());
             let _c = b.sub(T::one());
-            let _dist = Seq::<T>::ord_dist(&a, &b);
-            let _zero = Seq::<T>::zero();
+            let _dist = RingSeq::<T>::ord_dist(&a, &b);
+            let _zero = RingSeq::<T>::zero();
         }
         test::<u8>(2);
         test::<u16>(2);
@@ -158,59 +158,59 @@ mod tests {
 
     #[test]
     fn cmp_wraparound() {
-        let a = Seq::new(u32::MAX);
-        let b = Seq::new(u32::MIN);
+        let a = RingSeq::new(u32::MAX);
+        let b = RingSeq::new(u32::MIN);
         assert!(a < b);
     }
 
     #[test]
     fn cmp_no_wraparound() {
-        let a = Seq::new(0);
-        let b = Seq::new(1);
+        let a = RingSeq::new(0);
+        let b = RingSeq::new(1);
         assert!(a < b);
     }
 
     #[test]
     fn cmp_far() {
-        let a = Seq::new(0);
-        let b = Seq::new(i32::MAX as u32);
-        let c = Seq::new(i32::MAX as u32 + 1);
+        let a = RingSeq::new(0);
+        let b = RingSeq::new(i32::MAX as u32);
+        let c = RingSeq::new(i32::MAX as u32 + 1);
         assert!(a < b);
         assert!(c < a);
     }
 
     #[test]
     fn add_wraparound() {
-        let a = Seq::new(u32::MAX);
+        let a = RingSeq::new(u32::MAX);
         let b = a.add(1);
         assert_eq!(b.value(), &0);
     }
 
     #[test]
     fn add_no_wraparound() {
-        let a = Seq::new(0);
+        let a = RingSeq::new(0);
         let b = a.add(1);
         assert_eq!(b.value(), &1);
     }
 
     #[test]
     fn sub_wraparound() {
-        let a = Seq::new(0);
-        let b = Seq::new(u32::MAX);
-        assert_eq!(Seq::ord_dist(&a, &b), 1);
+        let a = RingSeq::new(0);
+        let b = RingSeq::new(u32::MAX);
+        assert_eq!(RingSeq::ord_dist(&a, &b), 1);
     }
 
     #[test]
     fn sub_zero() {
-        let a = Seq::new(1);
-        let b = Seq::new(1);
-        assert_eq!(Seq::ord_dist(&a, &b), 0);
+        let a = RingSeq::new(1);
+        let b = RingSeq::new(1);
+        assert_eq!(RingSeq::ord_dist(&a, &b), 0);
     }
 
     #[test]
     fn sub_no_wraparound() {
-        let a = Seq::new(3);
-        let b = Seq::new(1);
-        assert_eq!(Seq::ord_dist(&a, &b), 2);
+        let a = RingSeq::new(3);
+        let b = RingSeq::new(1);
+        assert_eq!(RingSeq::ord_dist(&a, &b), 2);
     }
 }
