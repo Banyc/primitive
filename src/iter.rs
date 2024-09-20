@@ -15,10 +15,12 @@
 ///     vec![2, 4],
 /// ]);
 /// ```
+#[derive(Debug, Clone)]
 pub struct VecZip<I> {
     iterators: Vec<I>,
 }
 impl<I> VecZip<I> {
+    #[must_use]
     pub fn new(iterators: Vec<I>) -> Self {
         Self { iterators }
     }
@@ -40,3 +42,28 @@ pub trait AssertIteratorItemExt {
     }
 }
 impl<T> AssertIteratorItemExt for T {}
+
+#[derive(Debug, Clone)]
+pub struct Lookahead1<I, T> {
+    iter: I,
+    next: Option<T>,
+}
+impl<I, T> Lookahead1<I, T>
+where
+    I: Iterator<Item = T>,
+{
+    #[must_use]
+    pub fn new(mut iter: I) -> Self {
+        let next = iter.next();
+        Self { iter, next }
+    }
+
+    #[must_use]
+    pub fn peek(&self) -> Option<&T> {
+        self.next.as_ref()
+    }
+    pub fn pop(&mut self) -> Option<T> {
+        let next = self.iter.next();
+        core::mem::replace(&mut self.next, next)
+    }
+}
