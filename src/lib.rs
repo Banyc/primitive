@@ -15,6 +15,7 @@ pub mod priority;
 pub mod ring_seq;
 pub mod seq;
 pub mod sparse_set;
+pub mod stacked_state;
 pub mod static_borrow_vec;
 pub mod vec_seg;
 
