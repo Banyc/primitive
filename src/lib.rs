@@ -9,6 +9,7 @@ pub mod float;
 pub mod free_list;
 pub mod indexed_queue;
 pub mod iter;
+pub mod mut_cell;
 pub mod non_max;
 pub mod notify;
 pub mod obj_pool;
