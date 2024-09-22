@@ -5,6 +5,7 @@ extern crate test;
 pub mod bit_set;
 pub mod dense_hash_map;
 pub mod dep_inj;
+pub mod fixed_queue;
 pub mod float;
 pub mod free_list;
 pub mod indexed_queue;
