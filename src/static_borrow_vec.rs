@@ -47,7 +47,7 @@ impl<'guard, 't, T> BorrowVecGuard<'guard, 't, T> {
 impl<'guard, 't, T> Drop for BorrowVecGuard<'guard, 't, T> {
     fn drop(&mut self) {
         let vec = self.vec.take().unwrap();
-        let empty = Some(empty(vec));
+        let empty = Some(erase_vec_lifetime(vec));
         self.parent.empty = empty;
     }
 }
@@ -60,7 +60,7 @@ impl<'t, T> BorrowVec<'t, T> {
     /// Erase the lifetime on `T` and reuse the inner [`Vec`] in the future.
     #[must_use]
     pub fn clear(self) -> EmptyBorrowVec<T> {
-        let empty = Some(empty(self.vec));
+        let empty = Some(erase_vec_lifetime(self.vec));
         EmptyBorrowVec { empty }
     }
 
@@ -76,7 +76,7 @@ impl<'t, T> BorrowVec<'t, T> {
 
 /// Ref: <https://users.rust-lang.org/t/cast-empty-vec-a-t-to-vec-static-t/66687/17>
 #[must_use]
-fn empty<T>(mut v: Vec<&T>) -> Vec<&'static T> {
+pub fn erase_vec_lifetime<T>(mut v: Vec<&T>) -> Vec<&'static T> {
     v.clear();
     v.into_iter()
         .map(|_| -> &'static T { unreachable!() })

@@ -11,6 +11,7 @@ pub mod indexed_queue;
 pub mod iter;
 pub mod non_max;
 pub mod notify;
+pub mod obj_pool;
 pub mod priority;
 pub mod ring_seq;
 pub mod seq;
