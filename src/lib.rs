@@ -8,6 +8,7 @@ pub mod dep_inj;
 pub mod fixed_queue;
 pub mod float;
 pub mod free_list;
+pub mod grow_dense_map;
 pub mod indexed_queue;
 pub mod iter;
 pub mod mut_cell;
