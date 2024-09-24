@@ -1,4 +1,7 @@
-use std::{borrow::Borrow, collections::HashMap, mem::MaybeUninit, ptr::NonNull};
+use core::{borrow::Borrow, mem::MaybeUninit, ptr::NonNull};
+use std::collections::HashMap;
+
+use crate::{Clear, Len};
 
 #[derive(Debug)]
 pub struct GrowDenseMap<K, V, const CHUNK_SIZE: usize> {
@@ -23,6 +26,7 @@ impl<K, V, const CHUNK_SIZE: usize> GrowDenseMap<K, V, CHUNK_SIZE>
 where
     K: core::hash::Hash + Eq,
 {
+    /// fast
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
@@ -31,6 +35,7 @@ where
         let ptr = self.lookup.get(key)?;
         Some(unsafe { ptr.as_ref() })
     }
+    /// fast
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
@@ -39,6 +44,7 @@ where
         let ptr = self.lookup.get_mut(key)?;
         Some(unsafe { ptr.as_mut() })
     }
+    /// slow
     pub fn insert(&mut self, key: K, value: V) {
         if let Some(ptr) = self.lookup.get_mut(&key) {
             *unsafe { ptr.as_mut() } = value;
@@ -56,6 +62,17 @@ where
         let ptr = unsafe { chunk[offset].assume_init_mut() };
         let ptr = NonNull::new(ptr).unwrap();
         self.lookup.insert(key, ptr);
+    }
+}
+impl<K, V, const CHUNK_SIZE: usize> Len for GrowDenseMap<K, V, CHUNK_SIZE> {
+    fn len(&self) -> usize {
+        self.lookup.len()
+    }
+}
+impl<K, V, const CHUNK_SIZE: usize> Clear for GrowDenseMap<K, V, CHUNK_SIZE> {
+    fn clear(&mut self) {
+        self.chunks.clear();
+        self.lookup.clear();
     }
 }
 

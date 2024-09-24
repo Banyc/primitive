@@ -129,10 +129,13 @@ mod benches {
 
     use indexmap::IndexMap;
 
+    use crate::grow_dense_map::GrowDenseMap;
+
     use super::*;
 
     const N: usize = 2 << 16;
     const VALUE_SIZE: usize = 2 << 5;
+    const GROW_DENSE_MAP_CHUNK_SIZE: usize = 2 << 4;
 
     struct Value {
         #[allow(dead_code)]
@@ -174,6 +177,11 @@ mod benches {
     #[bench]
     fn bench_get_index_map(bencher: &mut test::Bencher) {
         let mut m = IndexMap::new();
+        get!(m, bencher);
+    }
+    #[bench]
+    fn bench_get_grow(bencher: &mut test::Bencher) {
+        let mut m = GrowDenseMap::<_, _, GROW_DENSE_MAP_CHUNK_SIZE>::new();
         get!(m, bencher);
     }
 
@@ -296,6 +304,11 @@ mod benches {
     #[bench]
     fn bench_insert_clear_index_map(bencher: &mut test::Bencher) {
         let mut m = IndexMap::new();
+        insert_clear!(m, bencher);
+    }
+    #[bench]
+    fn bench_insert_clear_grow(bencher: &mut test::Bencher) {
+        let mut m = GrowDenseMap::<_, _, GROW_DENSE_MAP_CHUNK_SIZE>::new();
         insert_clear!(m, bencher);
     }
 
