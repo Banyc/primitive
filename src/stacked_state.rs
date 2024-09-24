@@ -1,4 +1,7 @@
-use std::cell::RefCell;
+use std::{
+    cell::RefCell,
+    path::{Path, PathBuf},
+};
 
 pub trait State {
     type Args;
@@ -69,6 +72,34 @@ impl<T> StackedValue<T> {
     pub fn new_value(value: T) -> Self {
         let state = StackedValueState { value };
         StackedState::new(state)
+    }
+}
+
+#[derive(Debug)]
+pub struct StackedCwdState {
+    cwd: PathBuf,
+}
+impl State for StackedCwdState {
+    type Args = PathBuf;
+    fn replace(&mut self, args: Self::Args) -> Self::Args {
+        std::env::set_current_dir(&args).unwrap();
+        core::mem::replace(&mut self.cwd, args)
+    }
+    fn swap(&mut self, args: &mut Self::Args) {
+        std::env::set_current_dir(&args).unwrap();
+        core::mem::swap(&mut self.cwd, args);
+    }
+}
+pub type StackedCwd = StackedState<StackedCwdState>;
+impl StackedCwd {
+    pub fn new_current() -> Self {
+        let cwd = std::env::current_dir().unwrap();
+        let state = StackedCwdState { cwd };
+        StackedState::new(state)
+    }
+    pub fn join(&mut self, path: impl AsRef<Path>) -> PushGuard<'_, StackedCwdState, PathBuf> {
+        let cwd = self.state.borrow().cwd.join(path);
+        self.push(cwd)
     }
 }
 
