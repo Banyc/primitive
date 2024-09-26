@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use crate::mut_cell::MutCell;
 
 /// # Example
 ///
@@ -73,7 +73,7 @@ where
 #[derive(Debug)]
 pub struct Lookahead1Mut<'a, I, T> {
     iter: I,
-    next: RefCell<Option<&'a mut T>>,
+    next: MutCell<Option<&'a mut T>>,
 }
 impl<'a, I, T> Lookahead1Mut<'a, I, T>
 where
@@ -82,12 +82,12 @@ where
     #[must_use]
     pub fn new(mut iter: I) -> Self {
         let next = iter.next();
-        let next = RefCell::new(next);
+        let next = MutCell::new(next);
         Self { iter, next }
     }
 
     #[must_use]
-    pub fn peek(&self) -> &RefCell<Option<&'a mut T>> {
+    pub fn peek(&self) -> &MutCell<Option<&'a mut T>> {
         &self.next
     }
     pub fn pop(&mut self) -> Option<&'a mut T> {
