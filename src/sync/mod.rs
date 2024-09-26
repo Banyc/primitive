@@ -1,3 +1,3 @@
 pub mod notify;
-#[cfg(feature = "nightly")]
 pub mod seq_lock;
+pub mod sync_unsafe_cell;

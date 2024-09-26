@@ -1,5 +1,4 @@
 #![cfg_attr(feature = "nightly", feature(test))]
-#![cfg_attr(feature = "nightly", feature(sync_unsafe_cell))]
 #[cfg(feature = "nightly")]
 extern crate test;
 

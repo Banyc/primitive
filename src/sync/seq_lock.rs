@@ -1,10 +1,9 @@
-use std::{
-    cell::SyncUnsafeCell,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use core::sync::atomic::{AtomicU32, Ordering};
+
+use super::sync_unsafe_cell::SyncUnsafeCell;
 
 /// - single producer, multiple consumers
-/// - prioritized to write
+/// - prioritized in write
 #[derive(Debug)]
 pub struct SeqLock<T> {
     value: SyncUnsafeCell<T>,
@@ -72,28 +71,45 @@ mod tests {
                 assert_eq!(v, self.values[0]);
             }
         }
+        pub fn get(&self) -> &[T; DATA_SIZE] {
+            &self.values
+        }
     }
 
-    const N: usize = 1 << 22;
+    const N: usize = 1 << 18;
     const THREADS: usize = 1 << 3;
 
     #[test]
     fn test_seq_lock() {
         let l = SeqLock::new(Data::new(0));
         let l = Arc::new(l);
+        let mut threads = vec![];
         for _ in 0..THREADS {
-            std::thread::spawn({
+            let handle = std::thread::spawn({
                 let l = l.clone();
-                move || loop {
-                    let Some(data) = l.load() else {
-                        continue;
-                    };
-                    data.assert();
+                move || {
+                    let mut n = 0;
+                    loop {
+                        let Some(data) = l.load() else {
+                            continue;
+                        };
+                        n += 1;
+                        data.assert();
+                        if data.get()[0] + 1 == N {
+                            break;
+                        }
+                    }
+                    println!("{n}, {N}");
+                    assert!(0.2 < n as f64 / N as f64);
                 }
             });
+            threads.push(handle);
         }
         for i in 0..N {
             unsafe { l.store(Data::new(i)) };
+        }
+        for handle in threads {
+            handle.join().unwrap();
         }
     }
 }
