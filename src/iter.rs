@@ -92,7 +92,7 @@ where
     }
     pub fn pop(&mut self) -> Option<&'a mut T> {
         let next = self.iter.next();
-        core::mem::replace(&mut self.next.borrow_mut(), next)
+        core::mem::replace(unsafe { &mut self.next.borrow_mut() }, next)
     }
 }
 
@@ -106,7 +106,7 @@ mod tests {
         let mut iter = Lookahead1Mut::new(vec.iter_mut());
         loop {
             {
-                let mut int = iter.peek().borrow_mut();
+                let mut int = unsafe { iter.peek().borrow_mut() };
                 let Some(int) = int.as_deref_mut() else {
                     break;
                 };

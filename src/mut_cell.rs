@@ -22,23 +22,29 @@ impl<T> MutCell<T> {
         }
     }
 
+    /// # Safety
+    ///
+    /// the value must not be currently borrowed
     #[cfg(debug_assertions)]
-    pub fn borrow_mut(&self) -> impl DerefMut<Target = T> + '_ {
+    pub unsafe fn borrow_mut(&self) -> impl DerefMut<Target = T> + '_ {
         self.cell.borrow_mut()
     }
     #[cfg(not(debug_assertions))]
-    pub fn borrow_mut(&self) -> impl DerefMut<Target = T> + '_ {
-        let value = unsafe { &mut *self.cell.get() };
+    pub unsafe fn borrow_mut(&self) -> impl DerefMut<Target = T> + '_ {
+        let value = &mut *self.cell.get();
         ThinWrapMut::new(value)
     }
 
+    /// # Safety
+    ///
+    /// the value must not be currently mutably borrowed
     #[cfg(debug_assertions)]
-    pub fn borrow(&self) -> impl Deref<Target = T> + '_ {
+    pub unsafe fn borrow(&self) -> impl Deref<Target = T> + '_ {
         self.cell.borrow()
     }
     #[cfg(not(debug_assertions))]
-    pub fn borrow(&self) -> impl Deref<Target = T> + '_ {
-        let value = unsafe { &*self.cell.get() };
+    pub unsafe fn borrow(&self) -> impl Deref<Target = T> + '_ {
+        let value = &*self.cell.get();
         ThinWrap::new(value)
     }
 }
