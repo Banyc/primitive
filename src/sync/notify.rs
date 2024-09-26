@@ -1,6 +1,6 @@
 use std::sync::{Arc, Condvar, Mutex};
 
-use crate::indexed_queue::{IndexedQueue, QueueIndex};
+use crate::queue::indexed_queue::{IndexedQueue, QueueIndex};
 
 #[derive(Debug)]
 pub struct Notify {

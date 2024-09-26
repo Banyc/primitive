@@ -3,26 +3,21 @@
 extern crate test;
 
 pub mod bench;
-pub mod bit_set;
-pub mod dense_hash_map;
 pub mod dep_inj;
-pub mod fixed_queue;
 pub mod float;
-pub mod free_list;
-pub mod grow_dense_map;
-pub mod indexed_queue;
 pub mod iter;
+pub mod map;
 pub mod mut_cell;
 pub mod non_max;
-pub mod notify;
 pub mod obj_pool;
-pub mod priority;
+pub mod queue;
 pub mod ring_seq;
 pub mod seq;
-pub mod sparse_set;
+pub mod set;
 pub mod stable_vec;
 pub mod stacked_state;
 pub mod static_borrow_vec;
+pub mod sync;
 pub mod vec_seg;
 
 pub trait Capacity: Len {
