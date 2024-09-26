@@ -1,4 +1,5 @@
 use core::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 use super::sync_unsafe_cell::SyncUnsafeCell;
 
@@ -42,6 +43,39 @@ impl<T> SeqLock<T> {
             return None;
         }
         Some(v)
+    }
+}
+
+pub fn safe_seq_lock<T>(value: T) -> (SeqLockReader<T>, SeqLockWriter<T>) {
+    let lock = SeqLock::new(value);
+    let lock = Arc::new(lock);
+    let reader = SeqLockReader {
+        lock: Arc::clone(&lock),
+    };
+    let writer = SeqLockWriter {
+        lock: Arc::clone(&lock),
+    };
+    (reader, writer)
+}
+#[derive(Debug, Clone)]
+pub struct SeqLockReader<T> {
+    lock: Arc<SeqLock<T>>,
+}
+impl<T> SeqLockReader<T> {
+    pub fn load(&self) -> Option<T>
+    where
+        T: Clone,
+    {
+        self.lock.load()
+    }
+}
+#[derive(Debug)]
+pub struct SeqLockWriter<T> {
+    lock: Arc<SeqLock<T>>,
+}
+impl<T> SeqLockWriter<T> {
+    pub fn store(&self, value: T) {
+        unsafe { self.lock.store(value) };
     }
 }
 
