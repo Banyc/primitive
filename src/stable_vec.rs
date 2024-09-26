@@ -70,17 +70,33 @@ impl<T, const CHUNK_SIZE: usize> Clear for StableVec<T, CHUNK_SIZE> {
 
 type StorePtr<T, const CHUNK_SIZE: usize> = Arc<UnsafeCell<StableVec<T, CHUNK_SIZE>>>;
 #[derive(Debug)]
-pub struct SafePtr<T: 'static> {
+pub struct SafePtr16<T, const CHUNK_SIZE: usize> {
     ptr: NonNull<T>,
-    _store: Arc<dyn core::any::Any>,
+    _store: StorePtr<T, CHUNK_SIZE>,
 }
-impl<T> Deref for SafePtr<T> {
+impl<T, const CHUNK_SIZE: usize> Deref for SafePtr16<T, CHUNK_SIZE> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         unsafe { self.ptr.as_ref() }
     }
 }
-impl<T> DerefMut for SafePtr<T> {
+impl<T, const CHUNK_SIZE: usize> DerefMut for SafePtr16<T, CHUNK_SIZE> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { self.ptr.as_mut() }
+    }
+}
+#[derive(Debug)]
+pub struct SafePtr24<T: 'static> {
+    ptr: NonNull<T>,
+    _store: Arc<dyn core::any::Any>,
+}
+impl<T> Deref for SafePtr24<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.ptr.as_ref() }
+    }
+}
+impl<T> DerefMut for SafePtr24<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { self.ptr.as_mut() }
     }
@@ -96,11 +112,17 @@ impl<T, const CHUNK_SIZE: usize> SafeStableVec<T, CHUNK_SIZE> {
         Self { vec }
     }
 
-    pub fn push(&mut self, value: T) -> SafePtr<T> {
+    pub fn push16(&mut self, value: T) -> SafePtr16<T, CHUNK_SIZE> {
+        let vec = unsafe { self.vec.as_ref().get().as_mut() }.unwrap();
+        let ptr = vec.push(value);
+        let vec = Arc::clone(&self.vec);
+        SafePtr16 { ptr, _store: vec }
+    }
+    pub fn push24(&mut self, value: T) -> SafePtr24<T> {
         let vec = unsafe { self.vec.as_ref().get().as_mut() }.unwrap();
         let ptr = vec.push(value);
         let vec: Arc<dyn core::any::Any> = Arc::clone(&self.vec) as _;
-        SafePtr { ptr, _store: vec }
+        SafePtr24 { ptr, _store: vec }
     }
 }
 impl<T, const CHUNK_SIZE: usize> Default for SafeStableVec<T, CHUNK_SIZE> {
@@ -117,15 +139,15 @@ impl<T, const CHUNK_SIZE: usize> Len for SafeStableVec<T, CHUNK_SIZE> {
 #[test]
 fn test_safe_stable_vec() {
     let mut vec = SafeStableVec::<_, 2>::new();
-    let p0 = vec.push(0);
+    let p0 = vec.push24(0);
     assert_eq!(*p0, 0);
     struct S {
         vec: SafeStableVec<usize, 2>,
-        ptr: Vec<SafePtr<usize>>,
+        ptr: Vec<SafePtr24<usize>>,
     }
 
     let mut s = S { vec, ptr: vec![p0] };
-    let p1 = s.vec.push(1);
+    let p1 = s.vec.push16(1);
     assert_eq!(*s.ptr[0], 0);
     assert_eq!(*p1, 1);
 }
