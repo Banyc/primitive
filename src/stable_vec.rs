@@ -65,6 +65,7 @@ impl<T, const CHUNK_SIZE: usize> Len for StableVec<T, CHUNK_SIZE> {
 impl<T, const CHUNK_SIZE: usize> Clear for StableVec<T, CHUNK_SIZE> {
     fn clear(&mut self) {
         self.chunks.clear();
+        self.size = 0;
     }
 }
 
