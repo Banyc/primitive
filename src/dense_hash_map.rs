@@ -129,13 +129,14 @@ mod benches {
 
     use indexmap::IndexMap;
 
+    use crate::bench::HeapRandomizer;
     use crate::grow_dense_map::GrowDenseMap;
 
     use super::*;
 
     const N: usize = 2 << 16;
     const VALUE_SIZE: usize = 2 << 5;
-    const GROW_DENSE_MAP_CHUNK_SIZE: usize = 2 << 4;
+    const GROW_DENSE_MAP_CHUNK_SIZE: usize = 2 << 5;
 
     struct Value {
         #[allow(dead_code)]
@@ -151,7 +152,9 @@ mod benches {
 
     macro_rules! get {
         ($m: ident, $bencher: ident) => {
+            let mut heap = HeapRandomizer::new();
             for i in 0..N {
+                heap.randomize();
                 $m.insert(i, Value::new());
             }
             $bencher.iter(|| {

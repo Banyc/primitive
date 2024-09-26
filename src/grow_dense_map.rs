@@ -4,15 +4,75 @@ use std::collections::HashMap;
 use crate::{Clear, Len};
 
 #[derive(Debug)]
-pub struct GrowDenseMap<K, V, const CHUNK_SIZE: usize> {
-    chunks: Vec<Box<[MaybeUninit<V>; CHUNK_SIZE]>>,
-    lookup: HashMap<K, NonNull<V>>,
+pub struct StableVec<T, const CHUNK_SIZE: usize> {
+    chunks: Vec<Box<[MaybeUninit<T>; CHUNK_SIZE]>>,
+    size: usize,
 }
-impl<K, V, const CHUNK_SIZE: usize> GrowDenseMap<K, V, CHUNK_SIZE> {
+impl<T, const CHUNK_SIZE: usize> StableVec<T, CHUNK_SIZE> {
     pub fn new() -> Self {
         assert_eq!(CHUNK_SIZE % 2, 0);
         Self {
             chunks: vec![],
+            size: 0,
+        }
+    }
+
+    fn indices(index: usize) -> (usize, usize) {
+        (index / CHUNK_SIZE, index % CHUNK_SIZE)
+    }
+    pub fn push(&mut self, value: T) -> NonNull<T> {
+        let (chunk, offset) = Self::indices(self.size);
+        self.size += 1;
+        if self.chunks.len() == chunk {
+            self.chunks
+                .push(Box::new([const { MaybeUninit::uninit() }; CHUNK_SIZE]));
+        }
+        let chunk = &mut self.chunks[chunk];
+        chunk[offset] = MaybeUninit::new(value);
+        let ptr = unsafe { chunk[offset].assume_init_mut() };
+        NonNull::from(ptr)
+    }
+    pub fn pop(&mut self) -> Option<T> {
+        if self.size == 0 {
+            return None;
+        }
+        let (chunk, offset) = Self::indices(self.size);
+        self.size -= 1;
+        let chunk = &mut self.chunks[chunk];
+        let item = core::mem::replace(&mut chunk[offset], MaybeUninit::uninit());
+        Some(unsafe { item.assume_init() })
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        (0..self.size)
+            .map(|i| Self::indices(i))
+            .map(|(chunk, offset)| unsafe { self.chunks[chunk][offset].assume_init_ref() })
+    }
+}
+impl<T, const CHUNK_SIZE: usize> Default for StableVec<T, CHUNK_SIZE> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<T, const CHUNK_SIZE: usize> Len for StableVec<T, CHUNK_SIZE> {
+    fn len(&self) -> usize {
+        self.size
+    }
+}
+impl<T, const CHUNK_SIZE: usize> Clear for StableVec<T, CHUNK_SIZE> {
+    fn clear(&mut self) {
+        self.chunks.clear();
+    }
+}
+
+#[derive(Debug)]
+pub struct GrowDenseMap<K, V, const CHUNK_SIZE: usize> {
+    stable_vec: StableVec<V, CHUNK_SIZE>,
+    lookup: HashMap<K, NonNull<V>>,
+}
+impl<K, V, const CHUNK_SIZE: usize> GrowDenseMap<K, V, CHUNK_SIZE> {
+    pub fn new() -> Self {
+        Self {
+            stable_vec: StableVec::new(),
             lookup: HashMap::new(),
         }
     }
@@ -50,17 +110,7 @@ where
             *unsafe { ptr.as_mut() } = value;
             return;
         }
-        let index = self.lookup.len();
-        let chunk = index / CHUNK_SIZE;
-        if self.chunks.len() == chunk {
-            self.chunks
-                .push(Box::new([const { MaybeUninit::uninit() }; CHUNK_SIZE]));
-        }
-        let chunk = &mut self.chunks[chunk];
-        let offset = index % CHUNK_SIZE;
-        chunk[offset] = MaybeUninit::new(value);
-        let ptr = unsafe { chunk[offset].assume_init_mut() };
-        let ptr = NonNull::new(ptr).unwrap();
+        let ptr = self.stable_vec.push(value);
         self.lookup.insert(key, ptr);
     }
 }
@@ -71,7 +121,7 @@ impl<K, V, const CHUNK_SIZE: usize> Len for GrowDenseMap<K, V, CHUNK_SIZE> {
 }
 impl<K, V, const CHUNK_SIZE: usize> Clear for GrowDenseMap<K, V, CHUNK_SIZE> {
     fn clear(&mut self) {
-        self.chunks.clear();
+        self.stable_vec.clear();
         self.lookup.clear();
     }
 }
