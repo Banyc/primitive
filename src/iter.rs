@@ -1,5 +1,3 @@
-use crate::mut_cell::MutCell;
-
 /// # Example
 ///
 /// ```rust
@@ -73,7 +71,7 @@ where
 #[derive(Debug)]
 pub struct Lookahead1Mut<'a, I, T> {
     iter: I,
-    next: MutCell<Option<&'a mut T>>,
+    next: Option<&'a mut T>,
 }
 impl<'a, I, T> Lookahead1Mut<'a, I, T>
 where
@@ -82,17 +80,16 @@ where
     #[must_use]
     pub fn new(mut iter: I) -> Self {
         let next = iter.next();
-        let next = MutCell::new(next);
         Self { iter, next }
     }
 
     #[must_use]
-    pub fn peek(&self) -> &MutCell<Option<&'a mut T>> {
-        &self.next
+    pub fn peek(&mut self) -> Option<&mut T> {
+        self.next.as_deref_mut()
     }
     pub fn pop(&mut self) -> Option<&'a mut T> {
         let next = self.iter.next();
-        core::mem::replace(unsafe { &mut self.next.borrow_mut() }, next)
+        core::mem::replace(&mut self.next, next)
     }
 }
 
@@ -105,13 +102,10 @@ mod tests {
         let mut vec = vec![1, 2, 3];
         let mut iter = Lookahead1Mut::new(vec.iter_mut());
         loop {
-            {
-                let mut int = unsafe { iter.peek().borrow_mut() };
-                let Some(int) = int.as_deref_mut() else {
-                    break;
-                };
-                *int = 0;
-            }
+            let Some(int) = iter.peek() else {
+                break;
+            };
+            *int = 0;
             iter.pop();
         }
         assert_eq!(vec, [0, 0, 0]);
