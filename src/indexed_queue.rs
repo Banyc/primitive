@@ -54,6 +54,19 @@ impl<T> IndexedQueue<T> {
         }
         self.queue.front_mut().map(|entry| entry.as_mut().unwrap())
     }
+    #[must_use]
+    pub fn back_mut(&mut self) -> Option<&mut T> {
+        loop {
+            let Some(back) = self.queue.back() else {
+                break;
+            };
+            if back.is_some() {
+                break;
+            }
+            self.queue.pop_back();
+        }
+        self.queue.back_mut().map(|entry| entry.as_mut().unwrap())
+    }
 
     pub fn remove(&mut self, index: QueueIndex) -> Option<T> {
         let index = self.local_index(index)?;
@@ -86,6 +99,11 @@ impl<T> IndexedQueue<T> {
         } else {
             None
         }
+    }
+
+    pub fn trim(&mut self) {
+        let _ = self.front_mut();
+        let _ = self.back_mut();
     }
 }
 impl<T> Default for IndexedQueue<T> {
