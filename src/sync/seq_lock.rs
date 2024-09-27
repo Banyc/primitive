@@ -11,6 +11,7 @@ pub struct SeqLock<T> {
     version: AtomicU32,
 }
 impl<T> SeqLock<T> {
+    #[must_use]
     pub fn new(value: T) -> Self {
         Self {
             value: SyncUnsafeCell::new(value),
@@ -30,6 +31,7 @@ impl<T> SeqLock<T> {
         assert_eq!(end & 1, 1);
     }
 
+    #[must_use]
     pub fn load(&self) -> Option<T>
     where
         T: Clone,

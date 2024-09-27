@@ -87,12 +87,16 @@ impl WaitToken {
         self.blocker.notify_all();
     }
     pub fn wait(&self) {
-        let notified = self.notified.lock().unwrap();
-        if *notified {
-            return;
+        loop {
+            let notified = self.notified.lock().unwrap();
+            if *notified {
+                return;
+            }
+            let notified = self.blocker.wait(notified).expect("poisoned");
+            if *notified {
+                return;
+            }
         }
-        let notified = self.blocker.wait(notified).expect("poisoned");
-        assert!(*notified);
     }
 }
 
