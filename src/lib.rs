@@ -19,6 +19,7 @@ pub mod stacked_state;
 pub mod static_borrow_vec;
 pub mod sync;
 pub mod vec_seg;
+pub mod wrap;
 
 pub trait Capacity: Len {
     #[must_use]

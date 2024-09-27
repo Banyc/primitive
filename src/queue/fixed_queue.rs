@@ -2,6 +2,7 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::{
     seq::{Seq, SeqMut},
+    wrap::RingSpace,
     Capacity, Len, LenExt,
 };
 
@@ -45,13 +46,9 @@ where
     S: Seq<MaybeUninit<T>>,
 {
     fn len(&self) -> usize {
-        let is_wrapping = self.next_tail <= self.prev_head;
-        if is_wrapping {
-            let diff = self.prev_head - self.next_tail;
-            self.capacity() - diff
-        } else {
-            self.next_tail - self.prev_head - 1
-        }
+        let capacity = self.capacity();
+        let dist = self.next_tail.ring_sub(self.prev_head, capacity);
+        dist.checked_sub(1).unwrap_or(capacity)
     }
 }
 impl<S, T> FixedQueue<S, T>
@@ -63,13 +60,13 @@ where
             panic!("out of buffer space");
         }
         self.buf.as_slice_mut()[self.next_tail] = MaybeUninit::new(item);
-        self.next_tail = (self.next_tail + 1) % self.buf.as_slice().len();
+        self.next_tail = self.next_tail.ring_add(1, self.capacity());
     }
     pub fn dequeue(&mut self) -> Option<&T> {
         if self.is_empty() {
             return None;
         }
-        let head = (self.prev_head + 1) % self.buf.as_slice().len();
+        let head = self.prev_head.ring_add(1, self.capacity());
         self.prev_head = head;
         Some(unsafe { self.buf.as_slice().get(head).unwrap().assume_init_ref() })
     }
