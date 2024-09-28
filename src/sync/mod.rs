@@ -1,3 +1,4 @@
+pub mod mutex;
 pub mod notify;
 pub mod seq_lock;
 pub mod spmc;

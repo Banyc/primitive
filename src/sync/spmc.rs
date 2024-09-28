@@ -26,21 +26,6 @@ impl<T, const N: usize> SpmcQueue<T, N> {
         Self { ring, next }
     }
 
-    /// # Safety
-    ///
-    /// Must only be accessed by one thread at a time
-    pub unsafe fn push(&self, value: T)
-    where
-        T: Copy,
-    {
-        let next = self.next.load(Ordering::Acquire);
-        let value = MaybeUninit::new(value);
-        let lock = &self.ring[next];
-        unsafe { lock.store(value) };
-        let next = next.ring_add(1, N - 1);
-        self.next.store(next, Ordering::Release);
-    }
-
     pub fn next_version(&self) -> (usize, u32) {
         let next = self.next.load(Ordering::Acquire);
         let version = self.ring[next].version();
@@ -57,10 +42,24 @@ impl<T, const N: usize> SpmcQueue<T, N> {
         };
         (next, min_ver)
     }
-    pub fn load(&self, position: usize, min_ver: u32) -> Option<(T, u32)>
-    where
-        T: Copy,
-    {
+}
+impl<T, const N: usize> SpmcQueue<T, N>
+where
+    T: Copy,
+{
+    /// # Safety
+    ///
+    /// Must only be accessed by one thread at a time
+    pub unsafe fn push(&self, value: T) {
+        let next = self.next.load(Ordering::Acquire);
+        let value = MaybeUninit::new(value);
+        let lock = &self.ring[next];
+        unsafe { lock.store(value) };
+        let next = next.ring_add(1, N - 1);
+        self.next.store(next, Ordering::Release);
+    }
+
+    pub fn load(&self, position: usize, min_ver: u32) -> Option<(T, u32)> {
         let lock = &self.ring[position];
         let (value, ver) = lock.load()?;
         let ahead_of_write = ver.wrapping_add(2) == min_ver;
