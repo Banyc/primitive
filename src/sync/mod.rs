@@ -19,8 +19,8 @@ pub mod tests {
             }
         }
         pub fn assert(&self) {
-            for v in self.values {
-                assert_eq!(v, self.values[0]);
+            for (i, v) in self.values.iter().enumerate() {
+                assert_eq!(&self.values[0], v, "{i}");
             }
         }
         pub fn get(&self) -> &[T; DATA_SIZE] {
