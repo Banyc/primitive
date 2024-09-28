@@ -32,7 +32,7 @@ impl<T> SeqLock<T> {
     }
 
     #[must_use]
-    pub fn load(&self) -> Option<T>
+    pub fn load(&self) -> Option<(T, u32)>
     where
         T: Clone,
     {
@@ -44,7 +44,12 @@ impl<T> SeqLock<T> {
         if start_in_write || span_thru_write {
             return None;
         }
-        Some(v)
+        Some((v, start))
+    }
+
+    #[must_use]
+    pub fn version(&self) -> u32 {
+        self.version.load(Ordering::Acquire)
     }
 }
 
@@ -68,7 +73,7 @@ impl<T> SeqLockReader<T> {
     where
         T: Clone,
     {
-        self.lock.load()
+        self.lock.load().map(|(x, _)| x)
     }
 }
 #[derive(Debug)]
@@ -76,7 +81,7 @@ pub struct SeqLockWriter<T> {
     lock: Arc<SeqLock<T>>,
 }
 impl<T> SeqLockWriter<T> {
-    pub fn store(&self, value: T) {
+    pub fn store(&mut self, value: T) {
         unsafe { self.lock.store(value) };
     }
 }
@@ -85,39 +90,18 @@ impl<T> SeqLockWriter<T> {
 mod tests {
     use std::sync::Arc;
 
+    use crate::sync::tests::RepeatedData;
+
     use super::*;
 
-    const DATA_SIZE: usize = 1024;
-
-    #[derive(Debug, Clone, Copy)]
-    struct Data<T> {
-        values: [T; DATA_SIZE],
-    }
-    impl<T> Data<T>
-    where
-        T: core::fmt::Debug + PartialEq + Eq + Copy,
-    {
-        pub fn new(value: T) -> Self {
-            Self {
-                values: [value; DATA_SIZE],
-            }
-        }
-        pub fn assert(&self) {
-            for v in self.values {
-                assert_eq!(v, self.values[0]);
-            }
-        }
-        pub fn get(&self) -> &[T; DATA_SIZE] {
-            &self.values
-        }
-    }
-
+    const DATA_COUNT: usize = 1024;
     const N: usize = 1 << 18;
     const THREADS: usize = 1 << 3;
+    const RATE: f64 = 0.3;
 
     #[test]
     fn test_seq_lock() {
-        let l = SeqLock::new(Data::new(0));
+        let l = SeqLock::new(RepeatedData::<_, DATA_COUNT>::new(0));
         let l = Arc::new(l);
         let mut threads = vec![];
         for _ in 0..THREADS {
@@ -126,7 +110,7 @@ mod tests {
                 move || {
                     let mut n = 0;
                     loop {
-                        let Some(data) = l.load() else {
+                        let Some((data, _)) = l.load() else {
                             continue;
                         };
                         n += 1;
@@ -135,14 +119,15 @@ mod tests {
                             break;
                         }
                     }
-                    println!("{n}, {N}");
-                    assert!(0.2 < n as f64 / N as f64);
+                    let rate = n as f64 / N as f64;
+                    println!("{n}; {N}; {rate}");
+                    assert!(RATE < rate);
                 }
             });
             threads.push(handle);
         }
         for i in 0..N {
-            unsafe { l.store(Data::new(i)) };
+            unsafe { l.store(RepeatedData::new(i)) };
         }
         for handle in threads {
             handle.join().unwrap();
