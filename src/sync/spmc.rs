@@ -2,7 +2,7 @@ use core::{
     mem::MaybeUninit,
     sync::atomic::{fence, AtomicUsize, Ordering},
 };
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use crate::wrap::RingSpace;
 
@@ -77,7 +77,10 @@ impl<T, const N: usize> Default for SpmcQueue<T, N> {
     }
 }
 
-pub fn safe_smpc_queue<T, const N: usize>() -> (SpmcQueueReader<T, N>, SpmcQueueWriter<T, N>) {
+pub fn safe_smpc_queue<T, const N: usize>() -> (
+    SpmcQueueReader<T, N, Arc<SpmcQueue<T, N>>>,
+    SpmcQueueWriter<T, N>,
+) {
     let queue = SpmcQueue::new();
     let queue = Arc::new(queue);
     let reader = SpmcQueueReader::new(Arc::clone(&queue));
@@ -97,13 +100,19 @@ where
     }
 }
 #[derive(Debug, Clone)]
-pub struct SpmcQueueReader<T, const N: usize> {
-    queue: Arc<SpmcQueue<T, N>>,
+pub struct SpmcQueueReader<T, const N: usize, Q>
+where
+    Q: Deref<Target = SpmcQueue<T, N>>,
+{
+    queue: Q,
     position: usize,
     min_ver: u32,
 }
-impl<T, const N: usize> SpmcQueueReader<T, N> {
-    fn new(queue: Arc<SpmcQueue<T, N>>) -> Self {
+impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q>
+where
+    Q: Deref<Target = SpmcQueue<T, N>>,
+{
+    pub fn new(queue: Q) -> Self {
         let (position, min_ver) = queue.next_version();
         Self {
             queue,
