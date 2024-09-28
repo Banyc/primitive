@@ -6,7 +6,7 @@ use std::{ops::Deref, sync::Arc};
 
 use crate::wrap::RingSpace;
 
-use super::seq_lock::SeqLock;
+use super::{mutex::Mutex1, seq_lock::SeqLock};
 
 /// - message overriding
 #[derive(Debug)]
@@ -76,7 +76,7 @@ impl<T, const N: usize> Default for SpmcQueue<T, N> {
     }
 }
 
-pub fn safe_smpc_queue<T, const N: usize>() -> (
+pub fn safe_spmc_queue<T, const N: usize>() -> (
     SpmcQueueReader<T, N, Arc<SpmcQueue<T, N>>>,
     SpmcQueueWriter<T, N>,
 ) {
@@ -135,6 +135,42 @@ where
     }
 }
 
+type MpmcQueue<T, const N: usize> = Arc<(SpmcQueue<T, N>, Mutex1)>;
+pub struct MpmcToSpmcQueue<T, const N: usize>(MpmcQueue<T, N>);
+impl<T, const N: usize> Deref for MpmcToSpmcQueue<T, N> {
+    type Target = SpmcQueue<T, N>;
+    fn deref(&self) -> &Self::Target {
+        &self.0 .0
+    }
+}
+pub fn safe_mpmc_queue<T, const N: usize>() -> (
+    SpmcQueueReader<T, N, MpmcToSpmcQueue<T, N>>,
+    MpmcQueueWriter<T, N>,
+) {
+    let queue = SpmcQueue::new();
+    let queue = Arc::new((queue, Mutex1::new()));
+    let reader = SpmcQueueReader::new(MpmcToSpmcQueue(Arc::clone(&queue)));
+    let writer = MpmcQueueWriter { queue };
+    (reader, writer)
+}
+#[derive(Debug, Clone)]
+pub struct MpmcQueueWriter<T, const N: usize> {
+    queue: MpmcQueue<T, N>,
+}
+impl<T, const N: usize> MpmcQueueWriter<T, N>
+where
+    T: Copy,
+{
+    pub fn try_push(&self, value: T) -> bool {
+        if !self.queue.1.try_lock() {
+            return false;
+        }
+        unsafe { self.queue.0.push(value) };
+        self.queue.1.unlock();
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::sync::tests::RepeatedData;
@@ -149,7 +185,7 @@ mod tests {
 
     #[test]
     fn test_smpc_queue() {
-        let (rdr, mut wtr) = safe_smpc_queue::<RepeatedData<_, DATA_COUNT>, QUEUE_SIZE>();
+        let (rdr, mut wtr) = safe_spmc_queue::<RepeatedData<_, DATA_COUNT>, QUEUE_SIZE>();
         let mut threads = vec![];
         for _ in 0..THREADS {
             let handle = std::thread::spawn({
