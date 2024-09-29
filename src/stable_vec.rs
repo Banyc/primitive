@@ -75,6 +75,14 @@ pub struct SafePtr16<T, const CHUNK_SIZE: usize> {
     ptr: NonNull<T>,
     _store: StorePtr<T, CHUNK_SIZE>,
 }
+impl<T, const CHUNK_SIZE: usize> Clone for SafePtr16<T, CHUNK_SIZE> {
+    fn clone(&self) -> Self {
+        Self {
+            ptr: self.ptr,
+            _store: Arc::clone(&self._store),
+        }
+    }
+}
 impl<T, const CHUNK_SIZE: usize> Deref for SafePtr16<T, CHUNK_SIZE> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -90,6 +98,14 @@ impl<T, const CHUNK_SIZE: usize> DerefMut for SafePtr16<T, CHUNK_SIZE> {
 pub struct SafePtr24<T: 'static> {
     ptr: NonNull<T>,
     _store: Arc<dyn core::any::Any>,
+}
+impl<T> Clone for SafePtr24<T> {
+    fn clone(&self) -> Self {
+        Self {
+            ptr: self.ptr,
+            _store: Arc::clone(&self._store),
+        }
+    }
 }
 impl<T> Deref for SafePtr24<T> {
     type Target = T;
