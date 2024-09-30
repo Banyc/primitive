@@ -173,11 +173,11 @@ impl<T, const CHUNK_SIZE: usize> SafeStableVec<T, CHUNK_SIZE> {
         let vec = Arc::clone(&self.vec);
         SafePtrMut16 { ptr, _store: vec }
     }
-    pub fn push24(&mut self, value: T) -> SafePtr24<T> {
+    pub fn push24(&mut self, value: T) -> SafePtrMut24<T> {
         let vec = unsafe { self.vec.as_ref().get().as_mut() }.unwrap();
         let ptr = vec.push(value);
         let vec: Arc<dyn core::any::Any> = Arc::clone(&self.vec) as _;
-        SafePtr24 { ptr, _store: vec }
+        SafePtrMut24 { ptr, _store: vec }
     }
 }
 impl<T, const CHUNK_SIZE: usize> Default for SafeStableVec<T, CHUNK_SIZE> {
@@ -198,7 +198,7 @@ fn test_safe_stable_vec() {
     assert_eq!(*p0, 0);
     struct S {
         vec: SafeStableVec<usize, 2>,
-        ptr: Vec<SafePtr24<usize>>,
+        ptr: Vec<SafePtrMut24<usize>>,
     }
 
     let mut s = S { vec, ptr: vec![p0] };

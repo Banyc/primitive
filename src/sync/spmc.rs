@@ -27,21 +27,21 @@ impl<T, const N: usize> SpmcQueue<T, N> {
         Self { ring, next }
     }
 
-    pub fn next_version(&self) -> (usize, u32) {
+    pub fn next_version(&self) -> (usize, MinVer) {
         let next = self.next.load(Ordering::Acquire);
         let version = self.ring[next].version();
         fence(Ordering::Release);
         let new_next = self.next.load(Ordering::Relaxed);
         if version & 1 == 1 {
             let min_ver = version.wrapping_add(1);
-            return (next, min_ver);
+            return (next, MinVer(min_ver));
         }
         let min_ver = if next == new_next {
             version.wrapping_add(2)
         } else {
             version
         };
-        (next, min_ver)
+        (next, MinVer(min_ver))
     }
 }
 impl<T, const N: usize> SpmcQueue<T, N>
@@ -60,15 +60,19 @@ where
         self.next.store(next, Ordering::Release);
     }
 
-    pub fn load(&self, position: usize, min_ver: u32) -> Option<(T, u32)> {
+    /// # Safety
+    ///
+    /// `min_ver` must be received from [`Self::next_version()`] and later updated by [`Self::load()`] both from this instance
+    pub unsafe fn load(&self, position: usize, min_ver: MinVer) -> Option<(T, MinVer)> {
         let lock = &self.ring[position];
         let (value, ver) = lock.load()?;
-        let ahead_of_write = ver.wrapping_add(2) == min_ver;
+        let ahead_of_write = ver.wrapping_add(2) == min_ver.0;
         if ahead_of_write {
             return None;
         }
         let value = unsafe { value.assume_init() };
-        Some((value, ver))
+        let min_ver = MinVer(ver);
+        Some((value, min_ver))
     }
 }
 impl<T, const N: usize> Default for SpmcQueue<T, N> {
@@ -76,6 +80,9 @@ impl<T, const N: usize> Default for SpmcQueue<T, N> {
         Self::new()
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MinVer(u32);
 
 pub fn spmc_channel<T, const N: usize>() -> (
     SpmcQueueReader<T, N, Arc<SpmcQueue<T, N>>>,
@@ -104,7 +111,7 @@ where
 pub struct SpmcQueueReader<T, const N: usize, Q> {
     queue: DynRef<Q, SpmcQueue<T, N>>,
     position: usize,
-    min_ver: u32,
+    min_ver: MinVer,
     _item: PhantomData<T>,
 }
 impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q> {
@@ -121,7 +128,7 @@ impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q> {
     where
         T: Copy,
     {
-        let (val, ver) = self.queue.convert().load(self.position, self.min_ver)?;
+        let (val, ver) = unsafe { self.queue.convert().load(self.position, self.min_ver) }?;
         let ver_bump = self.min_ver != ver;
         let at_ver_start_pos = 0 == self.position;
         if !ver_bump && at_ver_start_pos {
