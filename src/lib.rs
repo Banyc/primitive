@@ -4,6 +4,7 @@ extern crate test;
 
 pub mod bench;
 pub mod dep_inj;
+pub mod diff;
 pub mod dyn_ref;
 pub mod float;
 pub mod iter;
