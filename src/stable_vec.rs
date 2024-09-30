@@ -71,6 +71,30 @@ impl<T, const CHUNK_SIZE: usize> Clear for StableVec<T, CHUNK_SIZE> {
 
 type StorePtr<T, const CHUNK_SIZE: usize> = Arc<UnsafeCell<StableVec<T, CHUNK_SIZE>>>;
 #[derive(Debug)]
+pub struct SafePtrMut16<T, const CHUNK_SIZE: usize> {
+    ptr: NonNull<T>,
+    _store: StorePtr<T, CHUNK_SIZE>,
+}
+impl<T, const CHUNK_SIZE: usize> SafePtrMut16<T, CHUNK_SIZE> {
+    pub fn into_ref(self) -> SafePtr16<T, CHUNK_SIZE> {
+        SafePtr16 {
+            ptr: self.ptr,
+            _store: self._store,
+        }
+    }
+}
+impl<T, const CHUNK_SIZE: usize> Deref for SafePtrMut16<T, CHUNK_SIZE> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.ptr.as_ref() }
+    }
+}
+impl<T, const CHUNK_SIZE: usize> DerefMut for SafePtrMut16<T, CHUNK_SIZE> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { self.ptr.as_mut() }
+    }
+}
+#[derive(Debug)]
 pub struct SafePtr16<T, const CHUNK_SIZE: usize> {
     ptr: NonNull<T>,
     _store: StorePtr<T, CHUNK_SIZE>,
@@ -89,7 +113,26 @@ impl<T, const CHUNK_SIZE: usize> Deref for SafePtr16<T, CHUNK_SIZE> {
         unsafe { self.ptr.as_ref() }
     }
 }
-impl<T, const CHUNK_SIZE: usize> DerefMut for SafePtr16<T, CHUNK_SIZE> {
+#[derive(Debug)]
+pub struct SafePtrMut24<T: 'static> {
+    ptr: NonNull<T>,
+    _store: Arc<dyn core::any::Any>,
+}
+impl<T> SafePtrMut24<T> {
+    pub fn into_ref(self) -> SafePtr24<T> {
+        SafePtr24 {
+            ptr: self.ptr,
+            _store: self._store,
+        }
+    }
+}
+impl<T> Deref for SafePtrMut24<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.ptr.as_ref() }
+    }
+}
+impl<T> DerefMut for SafePtrMut24<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { self.ptr.as_mut() }
     }
@@ -113,11 +156,6 @@ impl<T> Deref for SafePtr24<T> {
         unsafe { self.ptr.as_ref() }
     }
 }
-impl<T> DerefMut for SafePtr24<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { self.ptr.as_mut() }
-    }
-}
 /// Dropping won't invalidate created [`SafePtr`]s
 #[derive(Debug)]
 pub struct SafeStableVec<T, const CHUNK_SIZE: usize> {
@@ -129,11 +167,11 @@ impl<T, const CHUNK_SIZE: usize> SafeStableVec<T, CHUNK_SIZE> {
         Self { vec }
     }
 
-    pub fn push16(&mut self, value: T) -> SafePtr16<T, CHUNK_SIZE> {
+    pub fn push16(&mut self, value: T) -> SafePtrMut16<T, CHUNK_SIZE> {
         let vec = unsafe { self.vec.as_ref().get().as_mut() }.unwrap();
         let ptr = vec.push(value);
         let vec = Arc::clone(&self.vec);
-        SafePtr16 { ptr, _store: vec }
+        SafePtrMut16 { ptr, _store: vec }
     }
     pub fn push24(&mut self, value: T) -> SafePtr24<T> {
         let vec = unsafe { self.vec.as_ref().get().as_mut() }.unwrap();
@@ -164,7 +202,13 @@ fn test_safe_stable_vec() {
     }
 
     let mut s = S { vec, ptr: vec![p0] };
-    let p1 = s.vec.push16(1);
+    let mut p1 = s.vec.push16(1);
     assert_eq!(*s.ptr[0], 0);
     assert_eq!(*p1, 1);
+    *p1 = 2;
+    assert_eq!(*p1, 2);
+    let p1 = p1.into_ref();
+    assert_eq!(*p1, 2);
+    let p1 = p1.clone();
+    assert_eq!(*p1, 2);
 }
