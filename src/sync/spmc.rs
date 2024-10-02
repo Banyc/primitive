@@ -112,6 +112,7 @@ pub struct SpmcQueueReader<T, const N: usize, Q> {
     queue: DynRef<Q, SpmcQueue<T, N>>,
     position: usize,
     min_ver: MinVer,
+    read_once: bool,
     _item: PhantomData<T>,
 }
 impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q> {
@@ -121,6 +122,7 @@ impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q> {
             queue,
             position,
             min_ver,
+            read_once: false,
             _item: PhantomData,
         }
     }
@@ -131,11 +133,12 @@ impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q> {
         let (val, ver) = unsafe { self.queue.convert().load(self.position, self.min_ver) }?;
         let ver_bump = self.min_ver != ver;
         let at_ver_start_pos = 0 == self.position;
-        if !ver_bump && at_ver_start_pos {
+        if !ver_bump && at_ver_start_pos && self.read_once {
             return None;
         }
         self.min_ver = ver;
         self.position = self.position.ring_add(1, N - 1);
+        self.read_once = true;
         Some(val)
     }
 }
