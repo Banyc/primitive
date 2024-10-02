@@ -13,6 +13,7 @@ pub mod mut_cell;
 pub mod non_max;
 pub mod obj_pool;
 pub mod queue;
+pub mod range;
 pub mod ring_seq;
 pub mod seq;
 pub mod set;
