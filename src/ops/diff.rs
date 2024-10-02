@@ -8,6 +8,15 @@ pub enum Diff<U> {
     Neg(U),
     Zero,
 }
+impl<U> Diff<U> {
+    pub fn flip(self) -> Self {
+        match self {
+            Self::Pos(x) => Self::Neg(x),
+            Self::Neg(x) => Self::Pos(x),
+            Self::Zero => todo!(),
+        }
+    }
+}
 impl<U> Map<U> for Diff<U> {
     type Wrap<V> = Diff<V>;
     fn map<V>(self, f: impl FnOnce(U) -> V) -> Self::Wrap<V> {
