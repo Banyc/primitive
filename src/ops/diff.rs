@@ -1,17 +1,43 @@
 use num_traits::{CheckedAdd, CheckedSub};
 
+use super::wrap::{Map, TransposeOption, TransposeResult};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Diff<U> {
     Pos(U),
     Neg(U),
     Zero,
 }
-impl<U> Diff<U> {
-    pub fn map<V>(self, f: impl FnOnce(U) -> V) -> Diff<V> {
+impl<U> Map<U> for Diff<U> {
+    type Wrap<V> = Diff<V>;
+    fn map<V>(self, f: impl FnOnce(U) -> V) -> Self::Wrap<V> {
         match self {
             Diff::Pos(x) => Diff::Pos(f(x)),
             Diff::Neg(x) => Diff::Neg(f(x)),
             Diff::Zero => Diff::Zero,
+        }
+    }
+}
+impl<U> TransposeOption for Diff<Option<U>> {
+    type Inner = U;
+    type Wrap<T> = Diff<U>;
+    fn transpose_option(self) -> Option<Diff<U>> {
+        match self {
+            Diff::Pos(x) => x.map(Diff::Pos),
+            Diff::Neg(x) => x.map(Diff::Neg),
+            Diff::Zero => Some(Diff::Zero),
+        }
+    }
+}
+impl<U, E> TransposeResult for Diff<Result<U, E>> {
+    type Inner = U;
+    type Error = E;
+    type Wrap<T> = Diff<U>;
+    fn transpose_result(self) -> Result<Self::Wrap<Self::Inner>, Self::Error> {
+        match self {
+            Diff::Pos(x) => x.map(Diff::Pos),
+            Diff::Neg(x) => x.map(Diff::Neg),
+            Diff::Zero => Ok(Diff::Zero),
         }
     }
 }

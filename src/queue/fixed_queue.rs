@@ -1,7 +1,7 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::{
-    ops::wrap::RingSpace,
+    ops::ring::RingSpace,
     seq::{Seq, SeqMut},
     Capacity, Len, LenExt,
 };
