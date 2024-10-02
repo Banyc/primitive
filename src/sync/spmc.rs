@@ -5,7 +5,7 @@ use core::{
 };
 use std::sync::Arc;
 
-use crate::{dyn_ref::DynRef, wrap::RingSpace};
+use crate::ops::{dyn_ref::DynRef, wrap::RingSpace};
 
 use super::{mutex::Mutex1, seq_lock::SeqLock};
 
