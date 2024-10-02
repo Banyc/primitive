@@ -6,6 +6,15 @@ pub enum Diff<U> {
     Neg(U),
     Zero,
 }
+impl<U> Diff<U> {
+    pub fn map<V>(self, f: impl FnOnce(U) -> V) -> Diff<V> {
+        match self {
+            Diff::Pos(x) => Diff::Pos(f(x)),
+            Diff::Neg(x) => Diff::Neg(f(x)),
+            Diff::Zero => Diff::Zero,
+        }
+    }
+}
 pub trait DiffExt: CheckedAdd + CheckedSub + Ord {
     fn add_diff(self, diff: Diff<Self>) -> Option<Self> {
         match diff {
