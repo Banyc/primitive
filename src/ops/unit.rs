@@ -1,5 +1,9 @@
 use core::{fmt, time::Duration};
 
+const TIME_INTERVAL: u64 = 1_000;
+pub const MINUTE: Duration = Duration::from_secs(60);
+pub const HOUR: Duration = Duration::from_secs(MINUTE.as_secs() * 60);
+pub const DAY: Duration = Duration::from_secs(HOUR.as_secs() * 24);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HumanDuration(pub Duration);
 impl fmt::Display for HumanDuration {
@@ -8,9 +12,9 @@ impl fmt::Display for HumanDuration {
         let seconds = duration.as_secs_f64();
         let minutes = seconds / 60.;
         let hours = minutes / 60.;
-        let milliseconds = seconds * 1_000.;
-        let microseconds = milliseconds * 1_000.;
-        let nanoseconds = microseconds * 1_000.;
+        let milliseconds = seconds * TIME_INTERVAL as f64;
+        let microseconds = milliseconds * TIME_INTERVAL as f64;
+        let nanoseconds = microseconds * TIME_INTERVAL as f64;
         if 1. <= hours {
             hours.fmt(f)?;
             return write!(f, " h");
@@ -36,16 +40,20 @@ impl fmt::Display for HumanDuration {
     }
 }
 
+const INFO_SIZE_INTERVAL: u64 = 1 << 10;
+pub const KB: u64 = INFO_SIZE_INTERVAL;
+pub const MB: u64 = KB * INFO_SIZE_INTERVAL;
+pub const GB: u64 = MB * INFO_SIZE_INTERVAL;
+pub const TB: u64 = GB * INFO_SIZE_INTERVAL;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HumanBytes(pub u64);
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let bytes = self.0 as f64;
-        const INTERVAL: usize = 1 << 10;
-        let kilobytes = bytes / INTERVAL as f64;
-        let megabytes = kilobytes / INTERVAL as f64;
-        let gigabytes = megabytes / INTERVAL as f64;
-        let terabytes = gigabytes / INTERVAL as f64;
+        let kilobytes = bytes / INFO_SIZE_INTERVAL as f64;
+        let megabytes = kilobytes / INFO_SIZE_INTERVAL as f64;
+        let gigabytes = megabytes / INFO_SIZE_INTERVAL as f64;
+        let terabytes = gigabytes / INFO_SIZE_INTERVAL as f64;
         if 1. <= terabytes {
             terabytes.fmt(f)?;
             return write!(f, " TB");
