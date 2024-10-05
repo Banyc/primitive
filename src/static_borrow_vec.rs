@@ -34,7 +34,7 @@ pub struct BorrowVecGuard<'guard, 't, T: 'static> {
     parent: &'guard mut EmptyBorrowVec<T>,
     vec: Option<Vec<&'t T>>,
 }
-impl<'guard, 't, T> BorrowVecGuard<'guard, 't, T> {
+impl<'t, T> BorrowVecGuard<'_, 't, T> {
     #[must_use]
     pub fn get(&self) -> &Vec<&T> {
         self.vec.as_ref().unwrap()
@@ -44,7 +44,7 @@ impl<'guard, 't, T> BorrowVecGuard<'guard, 't, T> {
         self.vec.as_mut().unwrap()
     }
 }
-impl<'guard, 't, T> Drop for BorrowVecGuard<'guard, 't, T> {
+impl<T> Drop for BorrowVecGuard<'_, '_, T> {
     fn drop(&mut self) {
         let vec = self.vec.take().unwrap();
         let empty = Some(erase_vec_lifetime(vec));
