@@ -12,20 +12,57 @@ impl fmt::Display for HumanDuration {
         let microseconds = milliseconds * 1_000.;
         let nanoseconds = microseconds * 1_000.;
         if 1. <= hours {
-            return write!(f, "{hours:.2} h");
+            hours.fmt(f)?;
+            return write!(f, " h");
         }
         if 1. <= minutes {
-            return write!(f, "{minutes:.2} min");
+            minutes.fmt(f)?;
+            return write!(f, " min");
         }
         if 1. <= seconds {
-            return write!(f, "{seconds:.2} s");
+            seconds.fmt(f)?;
+            return write!(f, " s");
         }
         if 1. <= milliseconds {
-            return write!(f, "{milliseconds:.2} ms");
+            milliseconds.fmt(f)?;
+            return write!(f, " ms");
         }
         if 1. <= microseconds {
-            return write!(f, "{microseconds:.2} us");
+            microseconds.fmt(f)?;
+            return write!(f, " us");
         }
-        write!(f, "{nanoseconds:.2} ns")
+        nanoseconds.fmt(f)?;
+        write!(f, " ns")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HumanBytes(pub u64);
+impl fmt::Display for HumanBytes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let bytes = self.0 as f64;
+        const INTERVAL: usize = 1 << 10;
+        let kilobytes = bytes / INTERVAL as f64;
+        let megabytes = kilobytes / INTERVAL as f64;
+        let gigabytes = megabytes / INTERVAL as f64;
+        let terabytes = gigabytes / INTERVAL as f64;
+        if 1. <= terabytes {
+            terabytes.fmt(f)?;
+            return write!(f, " TB");
+        }
+        if 1. <= gigabytes {
+            gigabytes.fmt(f)?;
+            return write!(f, " GB");
+        }
+        if 1. <= megabytes {
+            megabytes.fmt(f)?;
+            return write!(f, " MB");
+        }
+        if 1. <= kilobytes {
+            kilobytes.fmt(f)?;
+            return write!(f, " KB");
+        }
+        bytes.fmt(f)?;
+        write!(f, " B")
     }
 }
