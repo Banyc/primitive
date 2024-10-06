@@ -1,9 +1,15 @@
-use std::ops::RangeBounds;
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct RangeAny<T> {
     pub start: core::ops::Bound<T>,
     pub end: core::ops::Bound<T>,
+}
+impl<T: ToOwned<Owned = T>> RangeAny<T> {
+    pub fn from_range(range: impl core::ops::RangeBounds<T>) -> Self {
+        Self {
+            start: range.start_bound().map(|x| x.to_owned()),
+            end: range.end_bound().map(|x| x.to_owned()),
+        }
+    }
 }
 impl<T> core::ops::RangeBounds<T> for RangeAny<T> {
     fn start_bound(&self) -> std::ops::Bound<&T> {
@@ -15,42 +21,27 @@ impl<T> core::ops::RangeBounds<T> for RangeAny<T> {
 }
 impl<T: ToOwned<Owned = T>> From<core::ops::Range<T>> for RangeAny<T> {
     fn from(value: core::ops::Range<T>) -> Self {
-        Self {
-            start: value.start_bound().map(|x| x.to_owned()),
-            end: value.end_bound().map(|x| x.to_owned()),
-        }
+        Self::from_range(value)
     }
 }
 impl<T: ToOwned<Owned = T>> From<core::ops::RangeInclusive<T>> for RangeAny<T> {
     fn from(value: core::ops::RangeInclusive<T>) -> Self {
-        Self {
-            start: value.start_bound().map(|x| x.to_owned()),
-            end: value.end_bound().map(|x| x.to_owned()),
-        }
+        Self::from_range(value)
     }
 }
 impl<T: ToOwned<Owned = T>> From<core::ops::RangeFrom<T>> for RangeAny<T> {
     fn from(value: core::ops::RangeFrom<T>) -> Self {
-        Self {
-            start: value.start_bound().map(|x| x.to_owned()),
-            end: value.end_bound().map(|x| x.to_owned()),
-        }
+        Self::from_range(value)
     }
 }
 impl<T: ToOwned<Owned = T>> From<core::ops::RangeTo<T>> for RangeAny<T> {
     fn from(value: core::ops::RangeTo<T>) -> Self {
-        Self {
-            start: value.start_bound().map(|x| x.to_owned()),
-            end: value.end_bound().map(|x| x.to_owned()),
-        }
+        Self::from_range(value)
     }
 }
 impl<T: ToOwned<Owned = T>> From<core::ops::RangeToInclusive<T>> for RangeAny<T> {
     fn from(value: core::ops::RangeToInclusive<T>) -> Self {
-        Self {
-            start: value.start_bound().map(|x| x.to_owned()),
-            end: value.end_bound().map(|x| x.to_owned()),
-        }
+        Self::from_range(value)
     }
 }
 impl<T> From<core::ops::RangeFull> for RangeAny<T> {
