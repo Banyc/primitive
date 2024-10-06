@@ -37,6 +37,115 @@ impl<I: Iterator> Iterator for VecZip<I> {
     }
 }
 
+pub struct VecZipLookahead1<I, T, F> {
+    iterators: Vec<Lookahead1<I, T>>,
+    compare: F,
+}
+impl<I, T, F> VecZipLookahead1<I, T, F> {
+    #[must_use]
+    pub fn new(iterators: Vec<Lookahead1<I, T>>, compare: F) -> Self {
+        Self { iterators, compare }
+    }
+}
+impl<I: Iterator, F> Iterator for VecZipLookahead1<I, I::Item, F>
+where
+    F: FnMut(I::Item, I::Item) -> bool,
+    I::Item: Copy,
+{
+    type Item = Vec<I::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.iterators.iter().map(|x| x.peek()).any(|x| x.is_none()) {
+            return None;
+        }
+        let out = self
+            .iterators
+            .iter()
+            .map(|x| *x.peek().unwrap())
+            .collect::<Vec<_>>();
+        let i = choose_first(out.iter().copied(), &mut self.compare)?;
+        self.iterators[i].pop().unwrap();
+        Some(out)
+    }
+}
+#[cfg(test)]
+#[test]
+fn test_vec_zip_lookahead1() {
+    let iterators = [vec![1, 4, 6], vec![2, 3, 5]];
+    let iterators = iterators.map(|x| Lookahead1::new(x.into_iter()));
+    let mut iter = VecZipLookahead1::new(iterators.to_vec(), |x, y| x <= y);
+    assert_eq!(&iter.next().unwrap(), &[1, 2]);
+    assert_eq!(&iter.next().unwrap(), &[4, 2]);
+    assert_eq!(&iter.next().unwrap(), &[4, 3]);
+    assert_eq!(&iter.next().unwrap(), &[4, 5]);
+    assert_eq!(&iter.next().unwrap(), &[6, 5]);
+    assert!(&iter.next().is_none());
+}
+
+pub struct VecLookahead1<I, T, F> {
+    iterators: Vec<Lookahead1<I, T>>,
+    compare: F,
+}
+impl<I, T, F> VecLookahead1<I, T, F> {
+    #[must_use]
+    pub fn new(iterators: Vec<Lookahead1<I, T>>, compare: F) -> Self {
+        Self { iterators, compare }
+    }
+}
+impl<I: Iterator, F> Iterator for VecLookahead1<I, I::Item, F>
+where
+    F: FnMut(&I::Item, &I::Item) -> bool,
+{
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let iter = self.iterators.iter().filter_map(|x| x.peek());
+        let i = choose_first(iter, &mut self.compare)?;
+        let x = self
+            .iterators
+            .iter_mut()
+            .filter(|x| x.peek().is_some())
+            .nth(i)
+            .unwrap()
+            .pop()
+            .unwrap();
+        Some(x)
+    }
+}
+#[cfg(test)]
+#[test]
+fn test_vec_lookahead1() {
+    let iterators: [Vec<i32>; 2] = [vec![1, 4, 6], vec![2, 3, 5]];
+    let iterators = iterators.map(|x| Lookahead1::new(x.into_iter()));
+    let mut iter = VecLookahead1::new(iterators.to_vec(), |x: &i32, y: &i32| *x <= *y);
+    assert_eq!(iter.next().unwrap(), 1);
+    assert_eq!(iter.next().unwrap(), 2);
+    assert_eq!(iter.next().unwrap(), 3);
+    assert_eq!(iter.next().unwrap(), 4);
+    assert_eq!(iter.next().unwrap(), 5);
+    assert_eq!(iter.next().unwrap(), 6);
+    assert!(&iter.next().is_none());
+}
+
+/// `compare`: choose first if true
+fn choose_first<T: Copy>(
+    iter: impl Iterator<Item = T>,
+    mut compare: impl FnMut(T, T) -> bool,
+) -> Option<usize> {
+    let mut next = None;
+    for (i, x) in iter.enumerate() {
+        let replace = match next {
+            Some((_, so_far)) => (compare)(x, so_far),
+            None => true,
+        };
+        if replace {
+            next = Some((i, x));
+        }
+    }
+    let (i, _) = next?;
+    Some(i)
+}
+
 pub trait AssertIteratorItemExt {
     fn assert_item<T>(self) -> Self
     where
@@ -90,6 +199,24 @@ pub trait Chunks: Iterator + Sized {
     }
 }
 impl<T> Chunks for T where T: Iterator {}
+#[cfg(test)]
+#[test]
+fn test_chunks() {
+    {
+        let mut buf = vec![];
+        let a: [usize; 3] = [0, 1, 2];
+        a.iter()
+            .static_chunks::<_, 2>(|tray| buf.push(tray.iter().copied().sum::<usize>()));
+        assert_eq!(&buf, &[1, 2]);
+    }
+    {
+        let mut buf = vec![];
+        let a: [usize; 4] = [0, 1, 2, 3];
+        a.iter()
+            .static_chunks::<_, 2>(|tray| buf.push(tray.iter().copied().sum::<usize>()));
+        assert_eq!(&buf, &[1, 5]);
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Lookahead1<I, T> {
@@ -140,40 +267,17 @@ where
         core::mem::replace(&mut self.next, next)
     }
 }
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_lookahead1_mut() {
-        let mut vec = vec![1, 2, 3];
-        let mut iter = Lookahead1Mut::new(vec.iter_mut());
-        loop {
-            let Some(int) = iter.peek() else {
-                break;
-            };
-            *int = 0;
-            iter.pop();
-        }
-        assert_eq!(vec, [0, 0, 0]);
+#[test]
+fn test_lookahead1_mut() {
+    let mut vec = vec![1, 2, 3];
+    let mut iter = Lookahead1Mut::new(vec.iter_mut());
+    loop {
+        let Some(int) = iter.peek() else {
+            break;
+        };
+        *int = 0;
+        iter.pop();
     }
-
-    #[test]
-    fn test_chunks() {
-        {
-            let mut buf = vec![];
-            let a: [usize; 3] = [0, 1, 2];
-            a.iter()
-                .static_chunks::<_, 2>(|tray| buf.push(tray.iter().copied().sum::<usize>()));
-            assert_eq!(&buf, &[1, 2]);
-        }
-        {
-            let mut buf = vec![];
-            let a: [usize; 4] = [0, 1, 2, 3];
-            a.iter()
-                .static_chunks::<_, 2>(|tray| buf.push(tray.iter().copied().sum::<usize>()));
-            assert_eq!(&buf, &[1, 5]);
-        }
-    }
+    assert_eq!(vec, [0, 0, 0]);
 }

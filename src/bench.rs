@@ -92,7 +92,7 @@ fn spin<T>(
     batch_size: usize,
     mut cum_var_secs: Option<&mut CumVar>,
     spin_env: &mut T,
-    workload: &mut impl FnMut(&mut T) -> BenchIterControl,
+    mut workload: impl FnMut(&mut T) -> BenchIterControl,
 ) -> SpinStats {
     let start = Instant::now();
     let mut iterations = 0;
