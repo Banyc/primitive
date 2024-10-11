@@ -17,6 +17,7 @@ pub mod set;
 pub mod stable_vec;
 pub mod stacked_state;
 pub mod static_borrow_vec;
+pub mod stopwatch;
 pub mod sync;
 pub mod vec_seg;
 
