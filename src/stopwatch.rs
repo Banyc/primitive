@@ -29,6 +29,11 @@ pub struct RunningWatch<'a> {
     stopwatch: &'a mut Stopwatch,
     start: Instant,
 }
+impl RunningWatch<'_> {
+    pub fn start_time(&self) -> Instant {
+        self.start
+    }
+}
 impl Drop for RunningWatch<'_> {
     fn drop(&mut self) {
         let elapsed = self.start.elapsed();
