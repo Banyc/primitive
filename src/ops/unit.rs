@@ -39,6 +39,19 @@ impl fmt::Display for HumanDuration {
         write!(f, " ns")
     }
 }
+pub trait DurationExt {
+    fn div_u128(&self, n: u128) -> Self;
+}
+impl DurationExt for Duration {
+    fn div_u128(&self, n: u128) -> Duration {
+        let nanos = self.as_nanos();
+        let nanos = nanos / n;
+        let one_sec = Duration::from_secs(1).as_nanos();
+        let secs = nanos / one_sec;
+        let subsec_nanos = (nanos % one_sec) as u32;
+        Duration::new(u64::try_from(secs).unwrap(), subsec_nanos)
+    }
+}
 
 const INFO_SIZE_INTERVAL: u64 = 1 << 10;
 pub const KB: u64 = INFO_SIZE_INTERVAL;
