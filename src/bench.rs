@@ -1,7 +1,6 @@
-use std::{
-    collections::LinkedList,
-    time::{Duration, Instant},
-};
+use std::{collections::LinkedList, time::Duration};
+
+use crate::stopwatch::ElapsedStopwatch;
 
 #[derive(Debug)]
 pub struct HeapRandomizer {
@@ -94,11 +93,11 @@ fn spin<T>(
     spin_env: &mut T,
     mut workload: impl FnMut(&mut T) -> BenchIterControl,
 ) -> SpinStats {
-    let start = Instant::now();
+    let mut elapsed = ElapsedStopwatch::new(at_least_for);
     let mut iterations = 0;
     let mut early_break = false;
     loop {
-        let duration = start.elapsed();
+        let duration = elapsed.stopwatch().elapsed();
         let enough_duration = at_least_for <= duration;
         if enough_duration || early_break {
             return SpinStats {
@@ -106,7 +105,7 @@ fn spin<T>(
                 duration,
             };
         }
-        let batch_start = Instant::now();
+        let batch_running = elapsed.stopwatch_mut().start();
         for _ in 0..batch_size {
             let ctrl = workload(spin_env);
             iterations += 1;
@@ -118,8 +117,9 @@ fn spin<T>(
                 }
             }
         }
+        let batch_elapsed = batch_running.stop();
         if let Some(cum_var) = cum_var_secs.as_deref_mut() {
-            cum_var.update(batch_start.elapsed().as_secs_f64() / batch_size as f64);
+            cum_var.update(batch_elapsed.as_secs_f64() / batch_size as f64);
         }
     }
 }
