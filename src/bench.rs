@@ -258,11 +258,12 @@ where
 #[cfg(test)]
 #[test]
 fn test_ema() {
-    let mut ema = ExpMovAvg::from_periods(NonZeroUsize::new(2).unwrap());
+    let mut ema = ExpMovVar::from_periods(NonZeroUsize::new(2).unwrap());
     ema.update(2.);
     ema.update(3.);
     ema.update(4.);
-    dbg!(ema.get());
-    assert!(3. < ema.get().unwrap());
-    assert!(ema.get().unwrap() < 4.);
+    dbg!(ema.mean().get());
+    dbg!(ema.var().get().map(|x| x.sqrt()));
+    assert!(3. < ema.mean().get().unwrap());
+    assert!(ema.mean().get().unwrap() < 4.);
 }
