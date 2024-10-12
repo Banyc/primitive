@@ -127,7 +127,12 @@ impl Clear for Elapsed {
 
 #[cfg(test)]
 mod tests {
-    use crate::ops::unit::{DurationExt, HumanDuration};
+    use std::{num::NonZeroUsize, sync::mpsc};
+
+    use crate::{
+        bench::ExpMovVar,
+        ops::unit::{DurationExt, HumanDuration},
+    };
 
     use super::*;
 
@@ -155,5 +160,38 @@ mod tests {
                 batch_running = batch_watch.stopwatch_mut().start_scoped();
             }
         }
+    }
+
+    #[test]
+    fn test_channel_latency() {
+        let mut elapsed = Elapsed::new(Duration::from_millis(200));
+        let (tx, rx) = mpsc::sync_channel(0);
+        std::thread::spawn(move || loop {
+            tx.send(Instant::now()).unwrap();
+        });
+        std::thread::spawn(move || {
+            let mut emvar = ExpMovVar::from_periods(NonZeroUsize::new(16).unwrap());
+            let mut ema_watch = Stopwatch::default();
+            let mut ema_count = 0;
+            while let Ok(time) = rx.recv() {
+                ema_watch.start();
+                let latency = time.elapsed();
+                emvar.update(latency.as_secs_f64());
+                ema_count += 1;
+                ema_watch.pause();
+                if elapsed.elapsed().is_some() && emvar.var().get().is_some() {
+                    elapsed.clear();
+                    println!(
+                        "mean: {:.1}; var: {:.1}; stats overhead: {:.1}",
+                        HumanDuration(Duration::from_secs_f64(emvar.mean().get().unwrap())),
+                        HumanDuration(Duration::from_secs_f64(emvar.var().get().unwrap())),
+                        HumanDuration(ema_watch.elapsed().div_u128(ema_count))
+                    );
+                    ema_watch.clear();
+                    ema_count = 0;
+                }
+            }
+        });
+        std::thread::sleep(Duration::from_secs(1));
     }
 }
