@@ -233,31 +233,13 @@ mod tests {
         mut tx: impl ChanSend<Instant> + Send + 'static,
         mut rx: impl ChanRecv<Instant> + Send + 'static,
     ) {
-        let mut elapsed = Elapsed::new(Duration::from_millis(200));
         std::thread::spawn(move || loop {
             tx.send(Instant::now()).unwrap();
         });
         std::thread::spawn(move || {
-            let mut emvar = ExpMovVar::from_periods(NonZeroUsize::new(16).unwrap());
-            let mut ema_watch = Stopwatch::default();
-            let mut ema_count = 0;
+            let mut report = LatencyReport::default();
             while let Ok(time) = rx.recv() {
-                ema_watch.start();
-                let latency = time.elapsed();
-                emvar.update(latency.as_secs_f64());
-                ema_count += 1;
-                ema_watch.pause();
-                if elapsed.elapsed().is_some() && emvar.var().get().is_some() {
-                    elapsed.clear();
-                    println!(
-                        "mean: {:.1}; var: {:.1}; stats overhead: {:.1}",
-                        HumanDuration(Duration::from_secs_f64(emvar.mean().get().unwrap())),
-                        HumanDuration(Duration::from_secs_f64(emvar.var().get().unwrap())),
-                        HumanDuration(ema_watch.elapsed().div_u128(ema_count))
-                    );
-                    ema_watch.clear();
-                    ema_count = 0;
-                }
+                report.update(time);
             }
         });
         std::thread::sleep(Duration::from_secs(10));
@@ -267,38 +249,19 @@ mod tests {
     #[ignore]
     async fn bench_channel_latency_tokio() {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-        let mut elapsed = Elapsed::new(Duration::from_millis(200));
         tokio::task::spawn(async move {
             loop {
                 tx.send(Instant::now()).await.unwrap();
             }
         });
         tokio::task::spawn(async move {
-            let mut emvar = ExpMovVar::from_periods(NonZeroUsize::new(16).unwrap());
-            let mut ema_watch = Stopwatch::default();
-            let mut ema_count = 0;
+            let mut report = LatencyReport::default();
             while let Some(time) = rx.recv().await {
-                ema_watch.start();
-                let latency = time.elapsed();
-                emvar.update(latency.as_secs_f64());
-                ema_count += 1;
-                ema_watch.pause();
-                if elapsed.elapsed().is_some() && emvar.var().get().is_some() {
-                    elapsed.clear();
-                    println!(
-                        "mean: {:.1}; var: {:.1}; stats overhead: {:.1}",
-                        HumanDuration(Duration::from_secs_f64(emvar.mean().get().unwrap())),
-                        HumanDuration(Duration::from_secs_f64(emvar.var().get().unwrap())),
-                        HumanDuration(ema_watch.elapsed().div_u128(ema_count))
-                    );
-                    ema_watch.clear();
-                    ema_count = 0;
-                }
+                report.update(time);
             }
         });
         tokio::time::sleep(Duration::from_secs(10)).await;
     }
-
     #[test]
     #[ignore]
     fn bench_channel_latency_std_mpsc() {
@@ -316,5 +279,42 @@ mod tests {
     fn bench_channel_latency_spmc() {
         let (rx, tx) = spmc_channel::<Instant, 2>();
         bench_channel_latency(tx, rx);
+    }
+
+    pub struct LatencyReport {
+        emvar: ExpMovVar<f64>,
+        ema_watch: Stopwatch,
+        ema_count: u128,
+        elapsed: Elapsed,
+    }
+    impl LatencyReport {
+        pub fn update(&mut self, start: Instant) {
+            self.ema_watch.start();
+            let latency = start.elapsed();
+            self.emvar.update(latency.as_secs_f64());
+            self.ema_count += 1;
+            self.ema_watch.pause();
+            if self.elapsed.elapsed().is_some() && self.emvar.var().get().is_some() {
+                self.elapsed.clear();
+                println!(
+                    "mean: {:.1}; var: {:.1}; stats overhead: {:.1}",
+                    HumanDuration(Duration::from_secs_f64(self.emvar.mean().get().unwrap())),
+                    HumanDuration(Duration::from_secs_f64(self.emvar.var().get().unwrap())),
+                    HumanDuration(self.ema_watch.elapsed().div_u128(self.ema_count))
+                );
+                self.ema_watch.clear();
+                self.ema_count = 0;
+            }
+        }
+    }
+    impl Default for LatencyReport {
+        fn default() -> Self {
+            Self {
+                emvar: ExpMovVar::from_periods(NonZeroUsize::new(16).unwrap()),
+                ema_watch: Default::default(),
+                ema_count: Default::default(),
+                elapsed: Elapsed::new(Duration::from_millis(200)),
+            }
+        }
     }
 }
