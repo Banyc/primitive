@@ -132,6 +132,7 @@ mod tests {
     use crate::{
         bench::ExpMovVar,
         ops::unit::{DurationExt, HumanDuration},
+        sync::spmc::{self, spmc_channel},
     };
 
     use super::*;
@@ -162,10 +163,61 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_channel_latency() {
+    pub trait ChanSend<T> {
+        fn send(&mut self, msg: T) -> Result<(), T>;
+    }
+    impl<T> ChanSend<T> for mpsc::SyncSender<T> {
+        fn send(&mut self, msg: T) -> Result<(), T> {
+            mpsc::SyncSender::send(self, msg).map_err(|e| e.0)
+        }
+    }
+    impl<T: Copy, const N: usize> ChanSend<T> for spmc::SpmcQueueWriter<T, N> {
+        fn send(&mut self, msg: T) -> Result<(), T> {
+            spmc::SpmcQueueWriter::push(self, msg);
+            Ok(())
+        }
+    }
+
+    #[allow(unused)]
+    pub trait ChanRecv<T> {
+        fn try_recv(&mut self) -> Result<T, TryRecvError>;
+        fn recv(&mut self) -> Result<T, ()>;
+    }
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum TryRecvError {
+        Disconnected,
+        Empty,
+    }
+    impl<T> ChanRecv<T> for mpsc::Receiver<T> {
+        fn recv(&mut self) -> Result<T, ()> {
+            mpsc::Receiver::recv(self).map_err(|_| ())
+        }
+        fn try_recv(&mut self) -> Result<T, TryRecvError> {
+            mpsc::Receiver::try_recv(self).map_err(|e| match e {
+                mpsc::TryRecvError::Empty => TryRecvError::Empty,
+                mpsc::TryRecvError::Disconnected => TryRecvError::Disconnected,
+            })
+        }
+    }
+    impl<T: Copy, const N: usize, Q> ChanRecv<T> for spmc::SpmcQueueReader<T, N, Q> {
+        fn recv(&mut self) -> Result<T, ()> {
+            loop {
+                let Some(msg) = spmc::SpmcQueueReader::pop(self) else {
+                    continue;
+                };
+                return Ok(msg);
+            }
+        }
+        fn try_recv(&mut self) -> Result<T, TryRecvError> {
+            spmc::SpmcQueueReader::pop(self).ok_or(TryRecvError::Empty)
+        }
+    }
+
+    fn bench_channel_latency(
+        mut tx: impl ChanSend<Instant> + Send + 'static,
+        mut rx: impl ChanRecv<Instant> + Send + 'static,
+    ) {
         let mut elapsed = Elapsed::new(Duration::from_millis(200));
-        let (tx, rx) = mpsc::sync_channel(0);
         std::thread::spawn(move || loop {
             tx.send(Instant::now()).unwrap();
         });
@@ -192,6 +244,19 @@ mod tests {
                 }
             }
         });
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(Duration::from_secs(10));
+    }
+
+    #[test]
+    #[ignore]
+    fn bench_latency_std_mpsc() {
+        let (tx, rx) = mpsc::sync_channel(0);
+        bench_channel_latency(tx, rx);
+    }
+    #[test]
+    #[ignore]
+    fn bench_latency_spmc() {
+        let (rx, tx) = spmc_channel::<Instant, 2>();
+        bench_channel_latency(tx, rx);
     }
 }
