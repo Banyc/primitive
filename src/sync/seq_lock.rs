@@ -34,10 +34,10 @@ impl<T> SeqLock<T> {
     #[must_use]
     pub fn load(&self) -> Option<(T, u32)>
     where
-        T: Clone,
+        T: Copy,
     {
         let start = self.version.load(Ordering::Acquire);
-        let v = unsafe { self.value.get().as_ref() }.unwrap().clone();
+        let v = *unsafe { self.value.get().as_ref() }.unwrap();
         fence(Ordering::Release);
         let end = self.version.load(Ordering::Relaxed);
         let start_in_write = start & 1 == 1;
@@ -72,7 +72,7 @@ pub struct SeqLockReader<T> {
 impl<T> SeqLockReader<T> {
     pub fn load(&self) -> Option<T>
     where
-        T: Clone,
+        T: Copy,
     {
         self.lock.load().map(|(x, _)| x)
     }
