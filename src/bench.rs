@@ -107,7 +107,7 @@ fn spin<T>(
                 duration,
             };
         }
-        let batch_running = elapsed.stopwatch_mut().start();
+        let batch_running = elapsed.stopwatch_mut().start_scoped();
         for _ in 0..batch_size {
             let ctrl = workload(spin_env);
             iterations += 1;

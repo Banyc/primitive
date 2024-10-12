@@ -5,19 +5,39 @@ use crate::Clear;
 #[derive(Debug, Clone)]
 pub struct Stopwatch {
     elapsed: Duration,
+    start: Option<Instant>,
 }
 impl Stopwatch {
     pub fn new(elapsed: Duration) -> Self {
-        Self { elapsed }
-    }
-    pub fn start(&mut self) -> RunningWatch<'_> {
-        RunningWatch {
-            stopwatch: self,
-            start: Instant::now(),
+        Self {
+            elapsed,
+            start: None,
         }
     }
+    pub fn start_scoped(&mut self) -> RunningWatch<'_> {
+        let now = Instant::now();
+        if let Some(start) = self.start.take() {
+            self.elapsed += now - start;
+        }
+        RunningWatch {
+            stopwatch: self,
+            start: now,
+        }
+    }
+    pub fn start(&mut self) {
+        if self.start.is_some() {
+            return;
+        }
+        self.start = Some(Instant::now());
+    }
+    pub fn pause(&mut self) {
+        let Some(start) = self.start.take() else {
+            return;
+        };
+        self.elapsed += start.elapsed();
+    }
     pub fn elapsed(&self) -> Duration {
-        self.elapsed
+        self.elapsed + self.start.map(|start| start.elapsed()).unwrap_or_default()
     }
 }
 impl Default for Stopwatch {
@@ -116,10 +136,10 @@ mod tests {
         let mut batch_watch = ElapsedStopwatch::new(Duration::from_secs(1));
         let mut loop_watch = ElapsedStopwatch::new(Duration::from_secs_f64(0.1));
         let mut loops = 0;
-        let mut batch_running = batch_watch.stopwatch_mut().start();
+        let mut batch_running = batch_watch.stopwatch_mut().start_scoped();
         loop {
             {
-                let _loop_running = loop_watch.stopwatch_mut().start();
+                let _loop_running = loop_watch.stopwatch_mut().start_scoped();
                 loops += 1;
             }
             if loop_watch.is_elapsed() {
@@ -132,7 +152,7 @@ mod tests {
                 if batch_watch.is_elapsed() {
                     break;
                 }
-                batch_running = batch_watch.stopwatch_mut().start();
+                batch_running = batch_watch.stopwatch_mut().start_scoped();
             }
         }
     }
