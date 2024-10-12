@@ -78,6 +78,33 @@ impl ElapsedStopwatch {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Elapsed {
+    watermark: Duration,
+    start: Instant,
+}
+impl Elapsed {
+    pub fn new(watermark: Duration) -> Self {
+        Self {
+            watermark,
+            start: Instant::now(),
+        }
+    }
+    pub fn elapsed(&self) -> Option<Duration> {
+        let elapsed = self.start.elapsed();
+        if self.watermark <= elapsed {
+            Some(elapsed)
+        } else {
+            None
+        }
+    }
+}
+impl Clear for Elapsed {
+    fn clear(&mut self) {
+        self.start = Instant::now();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ops::unit::{DurationExt, HumanDuration};
