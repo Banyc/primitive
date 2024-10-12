@@ -1,5 +1,7 @@
 use std::{collections::LinkedList, time::Duration};
 
+use num_traits::Float;
+
 use crate::stopwatch::ElapsedStopwatch;
 
 #[derive(Debug)]
@@ -89,7 +91,7 @@ impl Default for Bencher {
 fn spin<T>(
     at_least_for: Duration,
     batch_size: usize,
-    mut cum_var_secs: Option<&mut CumVar>,
+    mut cum_var_secs: Option<&mut CumVar<f64>>,
     spin_env: &mut T,
     mut workload: impl FnMut(&mut T) -> BenchIterControl,
 ) -> SpinStats {
@@ -154,28 +156,31 @@ impl BenchIterStats {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct CumVar {
-    sum: f64,
-    sum_of_squared: f64,
-    n: f64,
-    rough_mean: f64,
+pub struct CumVar<R> {
+    sum: R,
+    sum_of_squared: R,
+    n: R,
+    rough_mean: R,
 }
-impl CumVar {
-    pub fn new(rough_mean: f64) -> Self {
+impl<R> CumVar<R>
+where
+    R: Float,
+{
+    pub fn new(rough_mean: R) -> Self {
         Self {
-            sum: 0.,
-            sum_of_squared: 0.,
-            n: 0.,
+            sum: R::zero(),
+            sum_of_squared: R::zero(),
+            n: R::zero(),
             rough_mean,
         }
     }
-    pub fn update(&mut self, x: f64) {
+    pub fn update(&mut self, x: R) {
         let adjusted = x - self.rough_mean;
-        self.sum += adjusted;
-        self.sum_of_squared += adjusted.powi(2);
-        self.n += 1.;
+        self.sum = self.sum + adjusted;
+        self.sum_of_squared = self.sum_of_squared + adjusted.powi(2);
+        self.n = self.n + R::one();
     }
-    pub fn get(&self) -> f64 {
+    pub fn get(&self) -> R {
         let expect_of_squared = self.sum_of_squared / self.n;
         let expect_squared = (self.sum / self.n).powi(2);
         expect_of_squared - expect_squared
