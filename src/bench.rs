@@ -212,12 +212,49 @@ where
             self.prev = Some(x);
             return;
         };
-
         let new = x * self.alpha;
         let old = prev * (R::one() - self.alpha);
         self.prev = Some(new + old);
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExpMovVar<R> {
+    mean: ExpMovAvg<R>,
+    var: ExpMovAvg<R>,
+}
+impl<R> ExpMovVar<R>
+where
+    R: Float + From<f64>,
+{
+    pub fn from_alpha(alpha: R) -> Self {
+        Self {
+            mean: ExpMovAvg::from_alpha(alpha),
+            var: ExpMovAvg::from_alpha(alpha),
+        }
+    }
+    pub fn from_periods(n: NonZeroUsize) -> Self {
+        Self {
+            mean: ExpMovAvg::from_periods(n),
+            var: ExpMovAvg::from_periods(n),
+        }
+    }
+
+    pub fn update(&mut self, x: R) {
+        let var = self.mean.get().map(|mean| (x - mean).powi(2));
+        self.mean.update(x);
+        if let Some(var) = var {
+            self.var.update(var);
+        }
+    }
+    pub fn mean(&self) -> &ExpMovAvg<R> {
+        &self.mean
+    }
+    pub fn var(&self) -> &ExpMovAvg<R> {
+        &self.var
+    }
+}
+
 #[cfg(test)]
 #[test]
 fn test_ema() {
