@@ -247,6 +247,42 @@ mod tests {
         std::thread::sleep(Duration::from_secs(10));
     }
 
+    #[tokio::test]
+    #[ignore]
+    async fn bench_channel_latency_tokio() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        let mut elapsed = Elapsed::new(Duration::from_millis(200));
+        tokio::task::spawn(async move {
+            loop {
+                tx.send(Instant::now()).await.unwrap();
+            }
+        });
+        tokio::task::spawn(async move {
+            let mut emvar = ExpMovVar::from_periods(NonZeroUsize::new(16).unwrap());
+            let mut ema_watch = Stopwatch::default();
+            let mut ema_count = 0;
+            while let Some(time) = rx.recv().await {
+                ema_watch.start();
+                let latency = time.elapsed();
+                emvar.update(latency.as_secs_f64());
+                ema_count += 1;
+                ema_watch.pause();
+                if elapsed.elapsed().is_some() && emvar.var().get().is_some() {
+                    elapsed.clear();
+                    println!(
+                        "mean: {:.1}; var: {:.1}; stats overhead: {:.1}",
+                        HumanDuration(Duration::from_secs_f64(emvar.mean().get().unwrap())),
+                        HumanDuration(Duration::from_secs_f64(emvar.var().get().unwrap())),
+                        HumanDuration(ema_watch.elapsed().div_u128(ema_count))
+                    );
+                    ema_watch.clear();
+                    ema_count = 0;
+                }
+            }
+        });
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    }
+
     #[test]
     #[ignore]
     fn bench_latency_std_mpsc() {
