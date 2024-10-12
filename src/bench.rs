@@ -1,4 +1,4 @@
-use std::{collections::LinkedList, time::Duration};
+use std::{collections::LinkedList, num::NonZeroUsize, time::Duration};
 
 use num_traits::Float;
 
@@ -185,4 +185,47 @@ where
         let expect_squared = (self.sum / self.n).powi(2);
         expect_of_squared - expect_squared
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExpMovAvg<R> {
+    alpha: R,
+    prev: Option<R>,
+}
+impl<R> ExpMovAvg<R>
+where
+    R: Float + From<f64>,
+{
+    pub fn from_alpha(alpha: R) -> Self {
+        Self { prev: None, alpha }
+    }
+    pub fn from_periods(n: NonZeroUsize) -> Self {
+        let alpha = 2. / (1 + n.get()) as f64;
+        Self::from_alpha(alpha.into())
+    }
+
+    pub fn get(&self) -> Option<R> {
+        self.prev
+    }
+    pub fn update(&mut self, x: R) {
+        let Some(prev) = self.prev else {
+            self.prev = Some(x);
+            return;
+        };
+
+        let new = x * self.alpha;
+        let old = prev * (R::one() - self.alpha);
+        self.prev = Some(new + old);
+    }
+}
+#[cfg(test)]
+#[test]
+fn test_ema() {
+    let mut ema = ExpMovAvg::from_periods(NonZeroUsize::new(2).unwrap());
+    ema.update(2.);
+    ema.update(3.);
+    ema.update(4.);
+    dbg!(ema.get());
+    assert!(3. < ema.get().unwrap());
+    assert!(ema.get().unwrap() < 4.);
 }
