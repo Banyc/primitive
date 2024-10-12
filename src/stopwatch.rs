@@ -310,7 +310,7 @@ mod tests {
     impl Default for LatencyReport {
         fn default() -> Self {
             Self {
-                emvar: ExpMovVar::from_periods(NonZeroUsize::new(16).unwrap()),
+                emvar: ExpMovVar::from_periods(NonZeroUsize::new(16 * 1024).unwrap()),
                 ema_watch: Default::default(),
                 ema_count: Default::default(),
                 elapsed: Elapsed::new(Duration::from_millis(200)),
