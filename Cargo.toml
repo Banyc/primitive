@@ -9,6 +9,7 @@ num-traits = "0.2"
 thiserror = "1"
 
 [dev-dependencies]
+crossbeam = "0.8"
 indexmap = "2"
 slotmap = "1"
 tokio = { version = "1", features = ["full"] }

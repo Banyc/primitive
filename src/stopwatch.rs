@@ -171,6 +171,11 @@ mod tests {
             mpsc::SyncSender::send(self, msg).map_err(|e| e.0)
         }
     }
+    impl<T> ChanSend<T> for crossbeam::channel::Sender<T> {
+        fn send(&mut self, msg: T) -> Result<(), T> {
+            crossbeam::channel::Sender::send(self, msg).map_err(|e| e.0)
+        }
+    }
     impl<T: Copy, const N: usize> ChanSend<T> for spmc::SpmcQueueWriter<T, N> {
         fn send(&mut self, msg: T) -> Result<(), T> {
             spmc::SpmcQueueWriter::push(self, msg);
@@ -196,6 +201,17 @@ mod tests {
             mpsc::Receiver::try_recv(self).map_err(|e| match e {
                 mpsc::TryRecvError::Empty => TryRecvError::Empty,
                 mpsc::TryRecvError::Disconnected => TryRecvError::Disconnected,
+            })
+        }
+    }
+    impl<T> ChanRecv<T> for crossbeam::channel::Receiver<T> {
+        fn recv(&mut self) -> Result<T, ()> {
+            crossbeam::channel::Receiver::recv(self).map_err(|_| ())
+        }
+        fn try_recv(&mut self) -> Result<T, TryRecvError> {
+            crossbeam::channel::Receiver::try_recv(self).map_err(|e| match e {
+                crossbeam::channel::TryRecvError::Empty => TryRecvError::Empty,
+                crossbeam::channel::TryRecvError::Disconnected => TryRecvError::Disconnected,
             })
         }
     }
@@ -285,13 +301,19 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn bench_latency_std_mpsc() {
+    fn bench_channel_latency_std_mpsc() {
         let (tx, rx) = mpsc::sync_channel(0);
         bench_channel_latency(tx, rx);
     }
     #[test]
     #[ignore]
-    fn bench_latency_spmc() {
+    fn bench_channel_latency_crossbeam() {
+        let (tx, rx) = crossbeam::channel::bounded::<Instant>(0);
+        bench_channel_latency(tx, rx);
+    }
+    #[test]
+    #[ignore]
+    fn bench_channel_latency_spmc() {
         let (rx, tx) = spmc_channel::<Instant, 2>();
         bench_channel_latency(tx, rx);
     }
