@@ -263,7 +263,7 @@ mod tests {
         std::thread::sleep(Duration::from_secs(10));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     #[ignore]
     async fn bench_channel_latency_tokio() {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
