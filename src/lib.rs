@@ -4,6 +4,7 @@ extern crate test;
 
 pub mod bench;
 pub mod dep_inj;
+pub mod io;
 pub mod iter;
 pub mod map;
 pub mod mut_cell;
