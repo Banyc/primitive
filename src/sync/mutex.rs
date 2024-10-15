@@ -77,7 +77,9 @@ mod benches {
                 let lock = lock.clone();
                 move || {
                     for _ in 0..N {
-                        while !lock.try_lock() {}
+                        while !lock.try_lock() {
+                            core::hint::spin_loop();
+                        }
                         let data = RepeatedData::<_, DATA_COUNT>::new(0);
                         data.assert();
                         lock.unlock();
