@@ -16,6 +16,32 @@ impl<T> FloatExt for T where T: Float {}
 const FLOAT_RELATIVE_TOLERANCE: f64 = 1e-9; // for big absolute numbers
 const FLOAT_ABSOLUTE_TOLERANCE: f64 = 1e-9; // for near-zero numbers
 
+macro_rules! impl_common_real_number_traits {
+    ($struct: ident, $value: tt) => {
+        impl<F: Float> Eq for $struct<F> {}
+        impl<F: Float> PartialOrd for $struct<F> {
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+        impl<F: Float> Ord for $struct<F> {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                unsafe { self.$value.partial_cmp(&other.$value).unwrap_unchecked() }
+            }
+        }
+        impl<F: Debug> Debug for $struct<F> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.$value.fmt(f)
+            }
+        }
+        impl<F: core::fmt::Display> core::fmt::Display for $struct<F> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.$value.fmt(f)
+            }
+        }
+    };
+}
+
 /// float in \[0, 1\]
 #[derive(Clone, Copy, PartialEq, Hash)]
 pub struct UnitF<F> {
@@ -38,27 +64,58 @@ impl<F: Float> UnitF<F> {
         self.v
     }
 }
-impl<F: Float> Eq for UnitF<F> {}
-impl<F: Float> PartialOrd for UnitF<F> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+impl_common_real_number_traits!(UnitF, v);
+
+/// float in \[0, inf)
+#[derive(Clone, Copy, PartialEq, Hash)]
+pub struct NonNegF<F> {
+    v: F,
+}
+impl<F: Float> NonNegF<F> {
+    pub fn new(float: F) -> Option<Self> {
+        if !(F::zero()..).contains(&float) {
+            return None;
+        }
+        Some(Self { v: float })
+    }
+    /// # Safety
+    ///
+    /// Float must be in \[0, inf)
+    pub const unsafe fn new_unchecked(float: F) -> Self {
+        Self { v: float }
+    }
+    pub fn get(&self) -> F {
+        self.v
     }
 }
-impl<F: Float> Ord for UnitF<F> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        unsafe { self.v.partial_cmp(&other.v).unwrap_unchecked() }
+impl_common_real_number_traits!(NonNegF, v);
+
+/// float in \[0, inf)
+#[derive(Clone, Copy, PartialEq, Hash)]
+pub struct PosF<F> {
+    v: F,
+}
+impl<F: Float> PosF<F> {
+    pub fn new(float: F) -> Option<Self> {
+        if !(F::zero()..).contains(&float) {
+            return None;
+        }
+        if float == F::zero() {
+            return None;
+        }
+        Some(Self { v: float })
+    }
+    /// # Safety
+    ///
+    /// Float must be in \[0, inf)
+    pub const unsafe fn new_unchecked(float: F) -> Self {
+        Self { v: float }
+    }
+    pub fn get(&self) -> F {
+        self.v
     }
 }
-impl<F: Debug> Debug for UnitF<F> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        self.v.fmt(f)
-    }
-}
-impl<F: core::fmt::Display> core::fmt::Display for UnitF<F> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        self.v.fmt(f)
-    }
-}
+impl_common_real_number_traits!(PosF, v);
 
 #[cfg(test)]
 mod tests {

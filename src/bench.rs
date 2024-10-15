@@ -2,7 +2,11 @@ use std::{collections::LinkedList, num::NonZeroUsize, time::Duration};
 
 use num_traits::Float;
 
-use crate::stopwatch::ElapsedStopwatch;
+use crate::{
+    ops::float::{NonNegF, PosF, UnitF},
+    stopwatch::ElapsedStopwatch,
+    Clear,
+};
 
 #[derive(Debug)]
 pub struct HeapRandomizer {
@@ -254,7 +258,6 @@ where
         &self.var
     }
 }
-
 #[cfg(test)]
 #[test]
 fn test_ema() {
@@ -266,4 +269,69 @@ fn test_ema() {
     dbg!(ema.var().get().map(|x| x.sqrt()));
     assert!(3. < ema.mean().get().unwrap());
     assert!(ema.mean().get().unwrap() < 4.);
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NearZeroHistogram<const N: usize> {
+    buckets: [u64; N],
+    count: usize,
+    a: f64,
+}
+impl<const N: usize> NearZeroHistogram<N> {
+    #[must_use]
+    pub fn new(max_value: PosF<f64>) -> Self {
+        let a = (N as f64) / max_value.get().ln_1p();
+        Self {
+            buckets: [0; N],
+            count: 0,
+            a,
+        }
+    }
+    pub fn insert(&mut self, value: NonNegF<f64>) {
+        self.count += 1;
+        let bucket = self.a * value.get().ln_1p();
+        let bucket = bucket.round();
+        if N as f64 <= bucket {
+            return;
+        }
+        let bucket = bucket as usize;
+        if N <= bucket {
+            return;
+        }
+        self.buckets[bucket] += 1;
+    }
+    #[must_use]
+    pub fn quartile(&self, p: UnitF<f64>) -> QuartileResult {
+        let Some(n) = self.count.checked_sub(1) else {
+            return QuartileResult::NoSamples;
+        };
+        let i = n as f64 * p.get();
+        let mut remaining = i as u64;
+        let mut found_bucket = None;
+        for (bucket, count) in self.buckets.iter().copied().enumerate() {
+            if remaining < count {
+                found_bucket = Some(bucket);
+                break;
+            }
+            remaining -= count;
+        }
+        let Some(found_bucket) = found_bucket else {
+            return QuartileResult::OutOfMaxValue;
+        };
+        let bucket = found_bucket as f64;
+        let value = (bucket / self.a).exp_m1();
+        QuartileResult::Found(value)
+    }
+}
+impl<const N: usize> Clear for NearZeroHistogram<N> {
+    fn clear(&mut self) {
+        self.buckets = [0; N];
+        self.count = 0;
+    }
+}
+#[derive(Debug, Clone, Copy)]
+pub enum QuartileResult {
+    NoSamples,
+    OutOfMaxValue,
+    Found(f64),
 }
