@@ -1,5 +1,10 @@
-use core::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use core::{
+    ops::{Deref, DerefMut},
+    sync::atomic::AtomicBool,
+    sync::atomic::Ordering,
+};
+
+use super::sync_unsafe_cell::SyncUnsafeCell;
 
 #[derive(Debug)]
 pub struct Mutex1 {
@@ -26,6 +31,46 @@ impl Mutex1 {
 impl Default for Mutex1 {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct SpinMutex<T> {
+    lock: Mutex1,
+    value: SyncUnsafeCell<T>,
+}
+impl<T> SpinMutex<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            lock: Mutex1::new(),
+            value: SyncUnsafeCell::new(value),
+        }
+    }
+    pub fn lock(&self) -> SpinMutexScoped<T> {
+        while !self.lock.try_lock() {
+            core::hint::spin_loop();
+        }
+        SpinMutexScoped { mutex: self }
+    }
+}
+#[derive(Debug)]
+pub struct SpinMutexScoped<'a, T> {
+    mutex: &'a SpinMutex<T>,
+}
+impl<T> Deref for SpinMutexScoped<'_, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.mutex.value.get() }
+    }
+}
+impl<T> DerefMut for SpinMutexScoped<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.mutex.value.get() }
+    }
+}
+impl<T> Drop for SpinMutexScoped<'_, T> {
+    fn drop(&mut self) {
+        self.mutex.lock.unlock();
     }
 }
 
