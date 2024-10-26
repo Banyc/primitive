@@ -97,16 +97,7 @@ impl<T> ArcObjectPool<T> {
     }
     #[must_use]
     pub fn take(&self) -> T {
-        let shard = match self.stacks.len() {
-            1 => 0,
-            _ => {
-                let shard = self.next.load(Ordering::Relaxed);
-                let next = shard.ring_add(1, self.stacks.len() - 1);
-                self.next.store(next, Ordering::Relaxed);
-                shard
-            }
-        };
-        self.stacks[shard]
+        self.stacks[self.shard()]
             .lock()
             .pop()
             .unwrap_or_else(|| (self.alloc)())
@@ -115,12 +106,28 @@ impl<T> ArcObjectPool<T> {
     pub fn take_scoped(&self) -> ObjectScoped<T> {
         ObjectScoped::new(self.recycler(), self.take())
     }
+    pub fn put(&self, mut obj: T) {
+        (self.reset)(&mut obj);
+        self.stacks[self.shard()].lock().push(obj);
+    }
     #[must_use]
     pub fn recycler(&self) -> ObjectRecycler<T> {
         ObjectRecycler {
             stacks: Arc::clone(&self.stacks),
             next: self.next.load(Ordering::Relaxed),
             reset: self.reset,
+        }
+    }
+    #[must_use]
+    fn shard(&self) -> usize {
+        match self.stacks.len() {
+            1 => 0,
+            _ => {
+                let shard = self.next.load(Ordering::Relaxed);
+                let next = shard.ring_add(1, self.stacks.len() - 1);
+                self.next.store(next, Ordering::Relaxed);
+                shard
+            }
         }
     }
 }
