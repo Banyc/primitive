@@ -21,11 +21,12 @@ impl<T> CappedStack<T> {
             buf: Vec::with_capacity(capacity),
         }
     }
-    pub fn push(&mut self, obj: T) {
+    pub fn push(&mut self, obj: T) -> Option<T> {
         if self.buf.len() == self.buf.capacity() {
-            return;
+            return Some(obj);
         }
         self.buf.push(obj);
+        None
     }
     pub fn pop(&mut self) -> Option<T> {
         self.buf.pop()
