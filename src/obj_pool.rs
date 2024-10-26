@@ -3,7 +3,10 @@ use core::{
     num::NonZeroUsize,
     ops::{Deref, DerefMut},
 };
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 
 use crate::{ops::ring::RingSpace, sync::mutex::SpinMutex, Capacity, Len};
 
@@ -74,7 +77,7 @@ type ArcStacks<T> = Arc<[SpinMutex<CappedStack<T>>]>;
 #[derive(Debug)]
 pub struct ArcObjectPool<T> {
     stacks: ArcStacks<T>,
-    next: usize,
+    next: AtomicUsize,
     alloc: fn() -> T,
     reset: fn(&mut T),
 }
@@ -87,31 +90,36 @@ impl<T> ArcObjectPool<T> {
         }
         Self {
             stacks: stacks.into(),
-            next: 0,
+            next: AtomicUsize::new(0),
             alloc,
             reset,
         }
     }
     #[must_use]
-    pub fn take(&mut self) -> T {
-        let shard = self.next;
-        if 1 < self.stacks.len() {
-            self.next = self.next.ring_add(1, self.stacks.len() - 1);
-        }
+    pub fn take(&self) -> T {
+        let shard = match self.stacks.len() {
+            1 => 0,
+            _ => {
+                let shard = self.next.load(Ordering::Relaxed);
+                let next = shard.ring_add(1, self.stacks.len() - 1);
+                self.next.store(next, Ordering::Relaxed);
+                shard
+            }
+        };
         self.stacks[shard]
             .lock()
             .pop()
             .unwrap_or_else(|| (self.alloc)())
     }
     #[must_use]
-    pub fn take_scoped(&mut self) -> ObjectScoped<T> {
+    pub fn take_scoped(&self) -> ObjectScoped<T> {
         ObjectScoped::new(self.recycler(), self.take())
     }
     #[must_use]
     pub fn recycler(&self) -> ObjectRecycler<T> {
         ObjectRecycler {
             stacks: Arc::clone(&self.stacks),
-            next: self.next,
+            next: self.next.load(Ordering::Relaxed),
             reset: self.reset,
         }
     }
@@ -210,7 +218,7 @@ mod benches {
     #[bench]
     fn bench_arc_pool_scoped(bencher: &mut test::Bencher) {
         let mut in_use = vec![];
-        let mut pool = arc_buf_pool(u32::MAX as usize, NonZeroUsize::new(4).unwrap());
+        let pool = arc_buf_pool(u32::MAX as usize, NonZeroUsize::new(4).unwrap());
         bencher.iter(|| {
             for _ in 0..N {
                 let mut buf = pool.take_scoped();
@@ -226,7 +234,7 @@ mod benches {
     #[bench]
     fn bench_arc_pool(bencher: &mut test::Bencher) {
         let mut in_use = vec![];
-        let mut pool = arc_buf_pool(u32::MAX as usize, NonZeroUsize::new(1).unwrap());
+        let pool = arc_buf_pool(u32::MAX as usize, NonZeroUsize::new(1).unwrap());
         let mut recycler = pool.recycler();
         bencher.iter(|| {
             for _ in 0..N {
