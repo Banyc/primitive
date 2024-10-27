@@ -132,7 +132,7 @@ impl<T> ArcObjectPool<T> {
     }
     #[must_use]
     pub fn take(&self) -> T {
-        self.stacks[self.shard()]
+        self.stacks[self.shard_incr()]
             .lock()
             .pop()
             .unwrap_or_else(|| (self.alloc)())
@@ -143,18 +143,25 @@ impl<T> ArcObjectPool<T> {
     }
     pub fn put(&self, mut obj: T) {
         (self.reset)(&mut obj);
-        self.stacks[self.shard()].lock().push(obj);
+        self.stacks[self.shard_incr()].lock().push(obj);
     }
     #[must_use]
     pub fn recycler(&self) -> ObjectRecycler<T> {
         ObjectRecycler {
             stacks: Arc::clone(&self.stacks),
-            next: self.next.load(Ordering::Relaxed),
+            next: self.shard(),
             reset: self.reset,
         }
     }
     #[must_use]
     fn shard(&self) -> usize {
+        match self.stacks.len() {
+            1 => 0,
+            _ => self.next.load(Ordering::Relaxed),
+        }
+    }
+    #[must_use]
+    fn shard_incr(&self) -> usize {
         match self.stacks.len() {
             1 => 0,
             _ => {
