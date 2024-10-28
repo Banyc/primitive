@@ -6,7 +6,7 @@ use crate::{
     Capacity, Len, LenExt,
 };
 
-pub type LinearFrontBTreeMap16<K, V> = LinearFrontBTreeMap<K, V, 16>;
+pub type LinearFrontBTreeMap20<K, V> = LinearFrontBTreeMap<K, V, 20>;
 
 #[derive(Debug)]
 pub struct LinearFrontBTreeMap<K, V, const N: usize> {
@@ -18,23 +18,30 @@ where
     K: Ord,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        if self.linear.len() < self.linear.capacity() {
-            assert!(self.linear.push(OrdEntry { key, value }).is_none());
-            self.linear.as_slice_mut().sort_unstable();
+        let mut linear_insert_index = None;
+        for (i, entry) in self.linear.as_slice_mut().iter_mut().enumerate() {
+            if entry.key < key {
+                continue;
+            }
+            if entry.key == key {
+                let old = core::mem::replace(&mut entry.value, value);
+                return Some(old);
+            }
+            linear_insert_index = Some(i);
+            break;
+        }
+        if linear_insert_index.is_none() && self.linear.len() != self.linear.capacity() {
+            self.linear.push(OrdEntry { key, value });
             return None;
         }
-        let linear_last = self.linear.as_slice().last();
-        if linear_last.is_none() || linear_last.unwrap().key < key {
-            return self.btree.insert(key, value);
-        };
-        let linear_last = self.linear.pop().unwrap();
-        assert!(self
-            .btree
-            .insert(linear_last.key, linear_last.value)
-            .is_none());
-        assert!(self.linear.push(OrdEntry { key, value }).is_none());
-        self.linear.as_slice_mut().sort_unstable();
-        None
+        if let Some(index) = linear_insert_index {
+            let last = self.linear.insert(index, OrdEntry { key, value });
+            if let Some(last) = last {
+                assert!(self.btree.insert(last.key, last.value).is_none());
+            }
+            return None;
+        }
+        self.btree.insert(key, value)
     }
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
@@ -170,28 +177,42 @@ where
     }
 }
 
-#[cfg(feature = "nightly")]
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn test_linear_front_btree() {
+        let mut tree = LinearFrontBTreeMap20::new();
+        for i in 0..21 {
+            tree.insert(i, i);
+            assert_eq!(*tree.get(&i).unwrap(), i);
+        }
+    }
+}
+
+#[cfg(feature = "nightly")]
+#[cfg(test)]
+mod benches {
+    use std::hint::black_box;
+
     use test::Bencher;
 
     use crate::sync::tests::RepeatedData;
 
     use super::*;
-    // const LINEAR: usize = 1 << 5;
-    // const DATA_SIZE: usize = 1 << 6;
-    const LINEAR: usize = 1 << 4;
-    const DATA_SIZE: usize = 1 << 10;
+    const LINEAR: usize = 20;
+    const DATA_SIZE: usize = 1 << 4;
 
     #[bench]
     fn bench_insert_remove_linear_front_btree(bencher: &mut Bencher) {
         let mut b: LinearFrontBTreeMap<usize, RepeatedData<u8, DATA_SIZE>, LINEAR> =
             LinearFrontBTreeMap::new();
         bencher.iter(|| {
-            for i in 0..LINEAR {
+            for i in (0..(LINEAR * 2)).rev() {
                 b.insert(i, RepeatedData::new(i as _));
             }
-            for i in 0..LINEAR {
+            for i in 0..(LINEAR * 2) {
                 b.remove(&i);
             }
         });
@@ -200,11 +221,39 @@ mod tests {
     fn bench_insert_remove_btree(bencher: &mut Bencher) {
         let mut b: BTreeMap<usize, RepeatedData<u8, DATA_SIZE>> = BTreeMap::new();
         bencher.iter(|| {
-            for i in 0..LINEAR {
+            for i in (0..(LINEAR * 2)).rev() {
                 b.insert(i, RepeatedData::new(i as _));
             }
-            for i in 0..LINEAR {
+            for i in 0..(LINEAR * 2) {
                 b.remove(&i);
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_iter_linear_front_btree(bencher: &mut Bencher) {
+        let mut b: LinearFrontBTreeMap<usize, RepeatedData<u8, DATA_SIZE>, LINEAR> =
+            LinearFrontBTreeMap::new();
+        for i in 0..(LINEAR * 2) {
+            b.insert(i, RepeatedData::new(i as _));
+        }
+        bencher.iter(|| {
+            for (k, v) in b.iter() {
+                black_box(k);
+                black_box(v);
+            }
+        });
+    }
+    #[bench]
+    fn bench_iter_btree(bencher: &mut Bencher) {
+        let mut b: BTreeMap<usize, RepeatedData<u8, DATA_SIZE>> = BTreeMap::new();
+        for i in 0..(LINEAR * 2) {
+            b.insert(i, RepeatedData::new(i as _));
+        }
+        bencher.iter(|| {
+            for (k, v) in b.iter() {
+                black_box(k);
+                black_box(v);
             }
         });
     }

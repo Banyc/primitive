@@ -136,9 +136,11 @@ impl<T, const N: usize> StaticStack<T, N> {
         unsafe { removed.assume_init() }
     }
     pub fn insert(&mut self, index: usize, value: T) -> Option<T> {
-        assert!(index < self.len());
+        assert!(index <= self.len());
+        assert!(index < self.capacity());
         let last = if self.len() == self.capacity() {
             let last = core::mem::replace(&mut self.array[self.len - 1], MaybeUninit::uninit());
+            self.len -= 1;
             Some(unsafe { last.assume_init() })
         } else {
             None
@@ -148,9 +150,7 @@ impl<T, const N: usize> StaticStack<T, N> {
             self.array[i] = prev;
         }
         self.array[index] = MaybeUninit::new(value);
-        if last.is_none() {
-            self.len += 1;
-        }
+        self.len += 1;
         last
     }
 }
@@ -166,10 +166,14 @@ fn test_static_stack() {
     assert_eq!(s.as_slice(), [1, 3, 4]);
     s.insert(1, 2);
     assert_eq!(s.as_slice(), [1, 2, 3, 4]);
+    s.insert(4, 6);
+    assert_eq!(s.as_slice(), [1, 2, 3, 4, 6]);
+    s.insert(4, 5);
+    assert_eq!(s.as_slice(), [1, 2, 3, 4, 5]);
     s.remove(0);
-    assert_eq!(s.as_slice(), [2, 3, 4]);
+    assert_eq!(s.as_slice(), [2, 3, 4, 5]);
     s.swap_remove(0);
-    assert_eq!(s.as_slice(), [4, 3]);
+    assert_eq!(s.as_slice(), [5, 3, 4]);
 }
 impl<T, const N: usize> Stack<T> for StaticStack<T, N> {
     fn push(&mut self, obj: T) -> Option<T> {
