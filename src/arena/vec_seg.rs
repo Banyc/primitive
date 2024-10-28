@@ -81,3 +81,41 @@ impl<T> Default for VecSeg<T> {
         Self::new()
     }
 }
+
+#[cfg(feature = "nightly")]
+#[cfg(test)]
+mod tests {
+    use std::hint::black_box;
+
+    use test::Bencher;
+
+    const SIZE1: usize = 1 << 10;
+    const SIZE2: usize = 1 << 4;
+
+    #[bench]
+    fn bench_indirection_once(bencher: &mut Bencher) {
+        let mut a = vec![];
+        for _ in 0..SIZE1 {
+            let b: Vec<u8> = vec![0; SIZE2];
+            a.push(b);
+        }
+        bencher.iter(|| {
+            for a in &a {
+                for b in a {
+                    black_box(b);
+                }
+            }
+        });
+    }
+    #[bench]
+    fn bench_indirection_none(bencher: &mut Bencher) {
+        let a: Vec<[u8; SIZE2]> = vec![[0; SIZE2]; SIZE1];
+        bencher.iter(|| {
+            for a in &a {
+                for b in a {
+                    black_box(b);
+                }
+            }
+        });
+    }
+}
