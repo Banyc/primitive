@@ -2,6 +2,7 @@
 #[cfg(feature = "nightly")]
 extern crate test;
 
+pub mod arena;
 pub mod bench;
 pub mod dep_inj;
 pub mod fail;
@@ -10,18 +11,14 @@ pub mod iter;
 pub mod map;
 pub mod mut_cell;
 pub mod non_max;
-pub mod obj_pool;
 pub mod ops;
 pub mod queue;
 pub mod ring_seq;
 pub mod seq;
 pub mod set;
-pub mod stable_vec;
 pub mod stacked_state;
-pub mod static_borrow_vec;
 pub mod stopwatch;
 pub mod sync;
-pub mod vec_seg;
 
 pub trait Capacity: Len {
     #[must_use]

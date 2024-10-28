@@ -8,76 +8,16 @@ use std::sync::{
     Arc,
 };
 
-use crate::{ops::ring::RingSpace, sync::mutex::SpinMutex, Capacity, Len};
+use crate::{ops::ring::RingSpace, sync::mutex::SpinMutex};
 
-#[derive(Debug, Clone)]
-pub struct CappedStack<T> {
-    buf: Vec<T>,
-}
-impl<T> CappedStack<T> {
-    #[must_use]
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            buf: Vec::with_capacity(capacity),
-        }
-    }
-    pub fn push(&mut self, obj: T) -> Option<T> {
-        if self.buf.len() == self.buf.capacity() {
-            return Some(obj);
-        }
-        self.buf.push(obj);
-        None
-    }
-    pub fn pop(&mut self) -> Option<T> {
-        self.buf.pop()
-    }
-}
-impl<T> Len for CappedStack<T> {
-    fn len(&self) -> usize {
-        self.buf.len()
-    }
-}
-impl<T> Capacity for CappedStack<T> {
-    fn capacity(&self) -> usize {
-        self.buf.capacity()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Stack<T> {
-    Capped(CappedStack<T>),
-    Vec(Vec<T>),
-}
-impl<T> Stack<T> {
-    pub fn new(capacity: Option<usize>) -> Self {
-        match capacity {
-            Some(capacity) => Self::Capped(CappedStack::new(capacity)),
-            None => Self::Vec(vec![]),
-        }
-    }
-    pub fn push(&mut self, obj: T) -> Option<T> {
-        match self {
-            Stack::Capped(capped_stack) => capped_stack.push(obj),
-            Stack::Vec(vec) => {
-                vec.push(obj);
-                None
-            }
-        }
-    }
-    pub fn pop(&mut self) -> Option<T> {
-        match self {
-            Stack::Capped(capped_stack) => capped_stack.pop(),
-            Stack::Vec(vec) => vec.pop(),
-        }
-    }
-}
+use super::stack::{DynStack, Stack};
 
 pub fn buf_pool<T>(capacity: Option<usize>) -> ObjectPool<Vec<T>> {
     ObjectPool::new(capacity, Vec::new, |b| b.clear())
 }
 #[derive(Debug)]
 pub struct ObjectPool<T> {
-    stack: Stack<T>,
+    stack: DynStack<T>,
     alloc: fn() -> T,
     reset: fn(&mut T),
 }
@@ -85,7 +25,7 @@ impl<T> ObjectPool<T> {
     #[must_use]
     pub fn new(capacity: Option<usize>, alloc: fn() -> T, reset: fn(&mut T)) -> Self {
         Self {
-            stack: Stack::new(capacity),
+            stack: DynStack::new(capacity),
             alloc,
             reset,
         }
@@ -103,7 +43,7 @@ impl<T> ObjectPool<T> {
 pub fn arc_buf_pool<T>(capacity: Option<usize>, shards: NonZeroUsize) -> ArcObjectPool<Vec<T>> {
     ArcObjectPool::new(capacity, shards, Vec::new, |b| b.clear())
 }
-type ArcStacks<T> = Arc<[SpinMutex<Stack<T>>]>;
+type ArcStacks<T> = Arc<[SpinMutex<DynStack<T>>]>;
 #[derive(Debug)]
 pub struct ArcObjectPool<T> {
     stacks: ArcStacks<T>,
@@ -121,7 +61,7 @@ impl<T> ArcObjectPool<T> {
     ) -> Self {
         let mut stacks = vec![];
         for _ in 0..shards.get() {
-            stacks.push(SpinMutex::new(Stack::new(capacity)));
+            stacks.push(SpinMutex::new(DynStack::new(capacity)));
         }
         Self {
             stacks: stacks.into(),

@@ -1,7 +1,7 @@
 use core::{borrow::Borrow, ptr::NonNull};
 use std::collections::HashMap;
 
-use crate::{stable_vec::StableVec, Clear, Len};
+use crate::{arena::stable_vec::StableVec, Clear, Len};
 
 #[derive(Debug)]
 pub struct GrowDenseMap<K, V, const CHUNK_SIZE: usize> {
