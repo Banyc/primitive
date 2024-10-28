@@ -8,6 +8,16 @@ use crate::{
 
 pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
 
+/// It is optimal if:
+///
+/// - insertions and removals are occasional
+/// - searching takes most of the time
+/// - value size is small
+///
+/// Linear size `N` is restricted by:
+///
+/// - frequency of insertions and removals
+/// - value size
 #[derive(Debug)]
 pub struct LinearFrontBTreeMap<K, V, const N: usize> {
     linear: StaticStack<OrdEntry<K, V>, N>,
@@ -18,6 +28,15 @@ where
     K: Ord,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        let linear_full = self.linear.len() == self.linear.capacity();
+        if linear_full {
+            let Some(last) = self.linear.as_slice().last() else {
+                return self.btree.insert(key, value);
+            };
+            if last.key < key {
+                return self.btree.insert(key, value);
+            }
+        }
         let mut linear_insert_index = None;
         for (i, entry) in self.linear.as_slice_mut().iter_mut().enumerate() {
             if entry.key < key {
@@ -30,18 +49,15 @@ where
             linear_insert_index = Some(i);
             break;
         }
-        if linear_insert_index.is_none() && self.linear.len() != self.linear.capacity() {
-            self.linear.push(OrdEntry { key, value });
+        let Some(index) = linear_insert_index else {
+            assert!(self.linear.push(OrdEntry { key, value }).is_none());
             return None;
+        };
+        let last = self.linear.insert(index, OrdEntry { key, value });
+        if let Some(last) = last {
+            assert!(self.btree.insert(last.key, last.value).is_none());
         }
-        if let Some(index) = linear_insert_index {
-            let last = self.linear.insert(index, OrdEntry { key, value });
-            if let Some(last) = last {
-                assert!(self.btree.insert(last.key, last.value).is_none());
-            }
-            return None;
-        }
-        self.btree.insert(key, value)
+        None
     }
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
@@ -72,6 +88,12 @@ where
         Q: Ord + ?Sized,
         K: Borrow<Q>,
     {
+        let Some(last) = self.linear.as_slice().last() else {
+            return self.btree.remove(key);
+        };
+        if last.key.borrow() < key {
+            return self.btree.remove(key);
+        }
         let mut linear_index = None;
         for (i, entry) in self.linear.as_slice().iter().enumerate() {
             if entry.key.borrow() == key {
@@ -79,14 +101,12 @@ where
                 break;
             }
         }
-        if let Some(index) = linear_index {
-            let removed = self.linear.remove(index).value;
-            if let Some((key, value)) = self.btree.pop_first() {
-                self.linear.push(OrdEntry { key, value });
-            }
-            return Some(removed);
+        let index = linear_index?;
+        let removed = self.linear.remove(index).value;
+        if let Some((key, value)) = self.btree.pop_first() {
+            self.linear.push(OrdEntry { key, value });
         }
-        self.btree.remove(key)
+        Some(removed)
     }
     pub fn pop_first(&mut self) -> Option<(K, V)> {
         if !self.linear.is_empty() {
@@ -202,7 +222,7 @@ mod benches {
 
     use super::*;
     const LINEAR: usize = 11;
-    const DATA_SIZE: usize = 1 << 5;
+    const DATA_SIZE: usize = 1 << 6;
 
     #[bench]
     fn bench_insert_remove_linear_front_btree(bencher: &mut Bencher) {
@@ -212,7 +232,7 @@ mod benches {
             for i in (0..(LINEAR * 2)).rev() {
                 b.insert(i, RepeatedData::new(i as _));
             }
-            for i in 0..(LINEAR * 2) {
+            for i in (0..(LINEAR * 2)).rev() {
                 b.remove(&i);
             }
         });
@@ -224,7 +244,7 @@ mod benches {
             for i in (0..(LINEAR * 2)).rev() {
                 b.insert(i, RepeatedData::new(i as _));
             }
-            for i in 0..(LINEAR * 2) {
+            for i in (0..(LINEAR * 2)).rev() {
                 b.remove(&i);
             }
         });
