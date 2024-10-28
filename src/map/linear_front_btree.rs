@@ -6,7 +6,7 @@ use crate::{
     Capacity, Len, LenExt,
 };
 
-pub type LinearFrontBTreeMap20<K, V> = LinearFrontBTreeMap<K, V, 20>;
+pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
 
 #[derive(Debug)]
 pub struct LinearFrontBTreeMap<K, V, const N: usize> {
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_linear_front_btree() {
-        let mut tree = LinearFrontBTreeMap20::new();
+        let mut tree = LinearFrontBTreeMap11::new();
         for i in 0..21 {
             tree.insert(i, i);
             assert_eq!(*tree.get(&i).unwrap(), i);
@@ -201,8 +201,8 @@ mod benches {
     use crate::sync::tests::RepeatedData;
 
     use super::*;
-    const LINEAR: usize = 20;
-    const DATA_SIZE: usize = 1 << 4;
+    const LINEAR: usize = 11;
+    const DATA_SIZE: usize = 1 << 5;
 
     #[bench]
     fn bench_insert_remove_linear_front_btree(bencher: &mut Bencher) {
