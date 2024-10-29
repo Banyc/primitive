@@ -18,7 +18,7 @@ pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
 ///
 /// - frequency of insertions and removals
 /// - value size
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinearFrontBTreeMap<K, V, const N: usize> {
     linear: StaticStack<OrdEntry<K, V>, N>,
     btree: BTreeMap<K, V>,
@@ -155,14 +155,6 @@ impl<K, V, const N: usize> Len for LinearFrontBTreeMap<K, V, N> {
 impl<K, V, const N: usize> Default for LinearFrontBTreeMap<K, V, N> {
     fn default() -> Self {
         Self::new()
-    }
-}
-impl<K: Clone + Copy, V: Clone + Copy, const N: usize> Clone for LinearFrontBTreeMap<K, V, N> {
-    fn clone(&self) -> Self {
-        Self {
-            linear: self.linear,
-            btree: self.btree.clone(),
-        }
     }
 }
 

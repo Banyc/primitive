@@ -101,7 +101,7 @@ impl<T> SeqMut<T> for DynStack<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy)]
 pub struct StaticStack<T, const N: usize> {
     array: [MaybeUninit<T>; N],
     len: usize,
@@ -218,9 +218,12 @@ impl<T, const N: usize> Default for StaticStack<T, N> {
         Self::new()
     }
 }
-impl<T: Copy, const N: usize> Clone for StaticStack<T, N> {
+impl<T: Clone, const N: usize> Clone for StaticStack<T, N> {
     fn clone(&self) -> Self {
-        *self
+        let mut new = Self::new();
+        for item in self.as_slice() {
+            new.push(item.clone());
+        }
+        new
     }
 }
-impl<T: Copy, const N: usize> Copy for StaticStack<T, N> {}
