@@ -107,6 +107,7 @@ pub struct StaticStack<T, const N: usize> {
     len: usize,
 }
 impl<T, const N: usize> StaticStack<T, N> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             array: (0..N)

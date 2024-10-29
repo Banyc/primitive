@@ -30,10 +30,8 @@ where
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let linear_full = self.linear.len() == self.linear.capacity();
         if linear_full {
-            let Some(last) = self.linear.as_slice().last() else {
-                return self.btree.insert(key, value);
-            };
-            if last.key < key {
+            let last = self.linear.as_slice().last();
+            if last.is_none() || last.unwrap().key < key {
                 return self.btree.insert(key, value);
             }
         }
@@ -59,6 +57,7 @@ where
         }
         None
     }
+    #[must_use]
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: Ord + ?Sized,
@@ -71,6 +70,7 @@ where
         }
         self.btree.get(key)
     }
+    #[must_use]
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         Q: Ord + ?Sized,
@@ -108,6 +108,7 @@ where
         }
         Some(removed)
     }
+    #[must_use]
     pub fn pop_first(&mut self) -> Option<(K, V)> {
         if !self.linear.is_empty() {
             let entry = self.linear.remove(0);
@@ -118,6 +119,7 @@ where
         }
         self.btree.pop_first()
     }
+    #[must_use]
     pub fn pop_last(&mut self) -> Option<(K, V)> {
         if let Some(last) = self.btree.pop_last() {
             return Some(last);
@@ -126,6 +128,7 @@ where
     }
 }
 impl<K, V, const N: usize> LinearFrontBTreeMap<K, V, N> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             linear: StaticStack::new(),
