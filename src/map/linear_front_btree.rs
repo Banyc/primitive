@@ -2,7 +2,7 @@ use std::{borrow::Borrow, collections::BTreeMap};
 
 use crate::{
     arena::stack::{Stack, StaticStack},
-    seq::{Seq, SeqMut},
+    seq::{LinearSearch, Seq, SeqMut},
     Capacity, Len, LenExt,
 };
 
@@ -35,23 +35,16 @@ where
                 return self.btree.insert(key, value);
             }
         }
-        let mut linear_insert_index = None;
-        for (i, entry) in self.linear.as_slice_mut().iter_mut().enumerate() {
-            if entry.key < key {
-                continue;
-            }
-            if entry.key == key {
-                let old = core::mem::replace(&mut entry.value, value);
+        let linear_insert_index = match self.linear.linear_search_by(|entry| entry.key.cmp(&key)) {
+            Ok(i) => {
+                let old = core::mem::replace(&mut self.linear.as_slice_mut()[i].value, value);
                 return Some(old);
             }
-            linear_insert_index = Some(i);
-            break;
-        }
-        let Some(index) = linear_insert_index else {
-            assert!(self.linear.push(OrdEntry { key, value }).is_none());
-            return None;
+            Err(i) => i,
         };
-        let last = self.linear.insert(index, OrdEntry { key, value });
+        let last = self
+            .linear
+            .insert(linear_insert_index, OrdEntry { key, value });
         if let Some(last) = last {
             assert!(self.btree.insert(last.key, last.value).is_none());
         }
@@ -94,14 +87,10 @@ where
         if last.key.borrow() < key {
             return self.btree.remove(key);
         }
-        let mut linear_index = None;
-        for (i, entry) in self.linear.as_slice().iter().enumerate() {
-            if entry.key.borrow() == key {
-                linear_index = Some(i);
-                break;
-            }
-        }
-        let index = linear_index?;
+        let index = self
+            .linear
+            .linear_search_by(|entry| entry.key.borrow().cmp(key))
+            .ok()?;
         let removed = self.linear.remove(index).value;
         if let Some((key, value)) = self.btree.pop_first() {
             self.linear.push(OrdEntry { key, value });
@@ -202,6 +191,10 @@ mod tests {
         for i in 0..21 {
             tree.insert(i, i);
             assert_eq!(*tree.get(&i).unwrap(), i);
+        }
+        for i in 0..21 {
+            tree.remove(&i);
+            assert!(tree.get(&i).is_none());
         }
     }
 }
