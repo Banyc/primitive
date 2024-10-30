@@ -1,9 +1,10 @@
-use core::{mem::MaybeUninit, ptr::NonNull};
-use std::{
+use core::{
     cell::UnsafeCell,
+    mem::MaybeUninit,
     ops::{Deref, DerefMut},
-    sync::Arc,
+    ptr::NonNull,
 };
+use std::sync::Arc;
 
 use crate::{Clear, Len};
 

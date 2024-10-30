@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::{
+use core::{
     cell::{RefCell, UnsafeCell},
     ops::{Deref, DerefMut},
 };

@@ -1,7 +1,7 @@
-use core::{borrow::Borrow, cmp::Ordering, hash::Hash};
+use core::{borrow::Borrow, cmp::Ordering, hash::Hash, time::Duration};
 use std::{
     collections::{BinaryHeap, HashMap},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 #[derive(Debug, Clone)]

@@ -60,9 +60,9 @@ pub trait DiffExt: CheckedAdd + CheckedSub + Ord {
     }
     fn sub_diff(self, other: Self) -> Diff<Self> {
         match self.cmp(&other) {
-            std::cmp::Ordering::Less => Diff::Neg(other - self),
-            std::cmp::Ordering::Equal => Diff::Zero,
-            std::cmp::Ordering::Greater => Diff::Pos(self - other),
+            core::cmp::Ordering::Less => Diff::Neg(other - self),
+            core::cmp::Ordering::Equal => Diff::Zero,
+            core::cmp::Ordering::Greater => Diff::Pos(self - other),
         }
     }
 }

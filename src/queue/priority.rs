@@ -1,7 +1,5 @@
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use core::time::Duration;
+use std::{collections::VecDeque, time::Instant};
 
 use thiserror::Error;
 

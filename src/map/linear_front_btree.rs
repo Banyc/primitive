@@ -1,4 +1,5 @@
-use std::{borrow::Borrow, collections::BTreeMap};
+use core::borrow::Borrow;
+use std::collections::BTreeMap;
 
 use crate::{
     arena::stack::{Stack, StaticStack},

@@ -1,4 +1,5 @@
-use std::{collections::LinkedList, num::NonZeroUsize, time::Duration};
+use core::{num::NonZeroUsize, time::Duration};
+use std::collections::LinkedList;
 
 use num_traits::Float;
 
