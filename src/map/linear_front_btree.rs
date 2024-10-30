@@ -2,7 +2,7 @@ use core::borrow::Borrow;
 use std::collections::BTreeMap;
 
 use crate::{
-    arena::stack::{Stack, StaticStack},
+    arena::stack::{Stack, StaticRevStack},
     seq::{LinearSearch, Seq, SeqMut},
     Full, Len, LenExt,
 };
@@ -24,7 +24,7 @@ const REFILL_RATIO: f64 = 5. / 9.;
 #[derive(Debug, Clone)]
 pub struct LinearFrontBTreeMap<K, V, const N: usize> {
     btree_first: Option<K>,
-    linear: StaticStack<OrdEntry<K, V>, N>,
+    linear: StaticRevStack<OrdEntry<K, V>, N>,
     btree: BTreeMap<K, V>,
 }
 impl<K, V, const N: usize> LinearFrontBTreeMap<K, V, N>
@@ -161,7 +161,7 @@ impl<K, V, const N: usize> LinearFrontBTreeMap<K, V, N> {
     pub fn new() -> Self {
         Self {
             btree_first: None,
-            linear: StaticStack::new(),
+            linear: StaticRevStack::new(),
             btree: BTreeMap::new(),
         }
     }
@@ -257,7 +257,7 @@ mod benches {
 
     use super::*;
     const LINEAR: usize = 11;
-    const DATA_SIZE: usize = (1 << 4) + (1 << 5);
+    const DATA_SIZE: usize = 1 << 6;
 
     #[bench]
     fn bench_insert_remove_linear_front_btree(bencher: &mut Bencher) {
