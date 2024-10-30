@@ -257,7 +257,7 @@ mod benches {
 
     use super::*;
     const LINEAR: usize = 11;
-    const DATA_SIZE: usize = 1 << 6;
+    const DATA_SIZE: usize = (1 << 4) + (1 << 5);
 
     #[bench]
     fn bench_insert_remove_linear_front_btree(bencher: &mut Bencher) {
