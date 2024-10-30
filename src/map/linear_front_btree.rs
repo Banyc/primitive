@@ -89,7 +89,10 @@ where
         }
         let index = self
             .linear
-            .linear_search_by(|entry| entry.key.borrow().cmp(key))
+            .linear_search_by(|entry| {
+                let entry_key: &Q = entry.key.borrow();
+                entry_key.cmp(key)
+            })
             .ok()?;
         let removed = self.linear.remove(index).value;
         if let Some((key, value)) = self.btree.pop_first() {
