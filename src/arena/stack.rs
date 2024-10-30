@@ -159,6 +159,7 @@ impl<T, const N: usize> StaticStack<T, N> {
 #[test]
 fn test_static_stack() {
     let mut s: StaticStack<usize, 5> = StaticStack::new();
+    assert_eq!(s.as_slice(), []);
     s.push(3);
     assert_eq!(s.as_slice(), [3]);
     s.push(4);
@@ -224,6 +225,140 @@ impl<T: Clone, const N: usize> Clone for StaticStack<T, N> {
         let mut new = Self::new();
         for item in self.as_slice() {
             new.push(item.clone());
+        }
+        new
+    }
+}
+
+#[derive(Debug, Copy)]
+pub struct StaticRevStack<T, const N: usize> {
+    len: usize,
+    array: [MaybeUninit<T>; N],
+}
+impl<T, const N: usize> StaticRevStack<T, N> {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            array: (0..N)
+                .map(|_| MaybeUninit::uninit())
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+            len: 0,
+        }
+    }
+    fn start(&self) -> usize {
+        N - self.len
+    }
+    pub fn remove(&mut self, index: usize) -> T {
+        assert!(index < self.len());
+        let removed =
+            core::mem::replace(&mut self.array[index + self.start()], MaybeUninit::uninit());
+        for i in (1..=index).rev() {
+            let i = i + self.start();
+            let prev = core::mem::replace(&mut self.array[i - 1], MaybeUninit::uninit());
+            self.array[i] = prev;
+        }
+        self.len -= 1;
+        unsafe { removed.assume_init() }
+    }
+    pub fn insert(&mut self, index: usize, value: T) -> Option<T> {
+        assert!(index <= self.len());
+        assert!(index < self.capacity());
+        if self.is_full() {
+            let last = core::mem::replace(&mut self.array[self.len - 1], MaybeUninit::uninit());
+            for i in (index + 1..self.len).rev() {
+                let i = i + self.start();
+                let prev = core::mem::replace(&mut self.array[i - 1], MaybeUninit::uninit());
+                self.array[i] = prev;
+            }
+            self.array[index + self.start()] = MaybeUninit::new(value);
+            Some(unsafe { last.assume_init() })
+        } else {
+            if !self.is_empty() {
+                for i in 0..index {
+                    let i = i + self.start();
+                    let curr = core::mem::replace(&mut self.array[i], MaybeUninit::uninit());
+                    self.array[i - 1] = curr;
+                }
+            }
+            self.array[index + self.start() - 1] = MaybeUninit::new(value);
+            self.len += 1;
+            None
+        }
+    }
+}
+#[cfg(test)]
+#[test]
+fn test_static_rev_stack() {
+    let mut s: StaticRevStack<usize, 5> = StaticRevStack::new();
+    assert_eq!(s.as_slice(), []);
+    s.insert(0, 3);
+    assert_eq!(s.as_slice(), [3]);
+    s.insert(1, 4);
+    assert_eq!(s.as_slice(), [3, 4]);
+    s.insert(0, 1);
+    assert_eq!(s.as_slice(), [1, 3, 4]);
+    s.insert(1, 2);
+    assert_eq!(s.as_slice(), [1, 2, 3, 4]);
+    s.insert(4, 6);
+    assert_eq!(s.as_slice(), [1, 2, 3, 4, 6]);
+    s.insert(4, 5);
+    assert_eq!(s.as_slice(), [1, 2, 3, 4, 5]);
+    assert_eq!(s.clone().as_slice(), [1, 2, 3, 4, 5]);
+    s.insert(0, 0);
+    assert_eq!(s.as_slice(), [0, 1, 2, 3, 4]);
+    s.remove(0);
+    assert_eq!(s.as_slice(), [1, 2, 3, 4]);
+    s.remove(1);
+    assert_eq!(s.as_slice(), [1, 3, 4]);
+}
+impl<T, const N: usize> Stack<T> for StaticRevStack<T, N> {
+    fn push(&mut self, obj: T) -> Option<T> {
+        if self.is_full() {
+            return Some(obj);
+        }
+        self.insert(self.len(), obj);
+        None
+    }
+    fn pop(&mut self) -> Option<T> {
+        if self.is_empty() {
+            return None;
+        }
+        Some(self.remove(self.len()))
+    }
+}
+impl<T, const N: usize> Len for StaticRevStack<T, N> {
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+impl<T, const N: usize> Capacity for StaticRevStack<T, N> {
+    fn capacity(&self) -> usize {
+        N
+    }
+}
+impl<T, const N: usize> Seq<T> for StaticRevStack<T, N> {
+    fn as_slice(&self) -> &[T] {
+        unsafe { core::mem::transmute(&self.array[self.start()..]) }
+    }
+}
+impl<T, const N: usize> SeqMut<T> for StaticRevStack<T, N> {
+    fn as_slice_mut(&mut self) -> &mut [T] {
+        let start = self.start();
+        unsafe { core::mem::transmute(&mut self.array[start..]) }
+    }
+}
+impl<T, const N: usize> Default for StaticRevStack<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<T: Clone, const N: usize> Clone for StaticRevStack<T, N> {
+    fn clone(&self) -> Self {
+        let mut new = Self::new();
+        for item in self.as_slice().iter().rev() {
+            new.insert(0, item.clone());
         }
         new
     }
