@@ -8,7 +8,7 @@ use crate::{
 
 pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
 
-const REFILL_RATIO: f64 = 7. / 8.;
+const REFILL_RATIO: f64 = 5. / 9.;
 
 /// It is optimal if:
 ///
@@ -88,12 +88,6 @@ where
         Q: Ord + ?Sized,
         K: Borrow<Q>,
     {
-        let Some(last) = self.linear.as_slice().last() else {
-            return self.btree.remove(key);
-        };
-        if last.key.borrow() < key {
-            return self.btree.remove(key);
-        }
         if let Some(btree_first) = &self.btree_first {
             if btree_first.borrow() <= key {
                 let removed = self.btree.remove(key);
@@ -136,7 +130,8 @@ where
         self.linear.pop().map(|entry| (entry.key, entry.value))
     }
     fn refill_linear(&mut self) {
-        if ((N as f64 * REFILL_RATIO) as usize) < self.linear.len() {
+        let refill_len = (N as f64 * REFILL_RATIO) as usize;
+        if refill_len < self.linear.len() {
             return;
         }
         if self.btree_first.is_none() {
@@ -232,15 +227,21 @@ mod tests {
 
     #[test]
     fn test_linear_front_btree() {
+        let end = 21;
         let mut tree = LinearFrontBTreeMap11::new();
-        for i in 0..21 {
+        for i in 0..end {
+            assert_eq!(tree.len(), i);
             tree.insert(i, i);
+            assert_eq!(*tree.get(&0).unwrap(), 0);
             assert_eq!(*tree.get(&i).unwrap(), i);
         }
-        for i in 0..21 {
+        for i in 0..end {
+            assert_eq!(tree.len(), end - i);
+            assert_eq!(*tree.get(&(end - 1)).unwrap(), end - 1);
             tree.remove(&i);
             assert!(tree.get(&i).is_none());
         }
+        assert!(tree.is_empty());
     }
 }
 
@@ -265,7 +266,7 @@ mod benches {
             for i in (0..(LINEAR * 2)).rev() {
                 b.insert(i, RepeatedData::new(i as _));
             }
-            for i in (0..(LINEAR * 2)).rev() {
+            for i in 0..(LINEAR * 2) {
                 b.remove(&i);
             }
         });
@@ -277,7 +278,7 @@ mod benches {
             for i in (0..(LINEAR * 2)).rev() {
                 b.insert(i, RepeatedData::new(i as _));
             }
-            for i in (0..(LINEAR * 2)).rev() {
+            for i in 0..(LINEAR * 2) {
                 b.remove(&i);
             }
         });
