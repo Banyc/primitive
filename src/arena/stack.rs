@@ -2,7 +2,7 @@ use core::mem::MaybeUninit;
 
 use crate::{
     seq::{Seq, SeqMut},
-    Capacity, Len, LenExt,
+    Capacity, Full, Len, LenExt,
 };
 
 pub trait Stack<T> {
@@ -23,7 +23,7 @@ impl<T> DynCappedStack<T> {
         }
     }
     pub fn push(&mut self, obj: T) -> Option<T> {
-        if self.buf.len() == self.buf.capacity() {
+        if self.is_full() {
             return Some(obj);
         }
         self.buf.push(obj);
@@ -139,7 +139,7 @@ impl<T, const N: usize> StaticStack<T, N> {
     pub fn insert(&mut self, index: usize, value: T) -> Option<T> {
         assert!(index <= self.len());
         assert!(index < self.capacity());
-        let last = if self.len() == self.capacity() {
+        let last = if self.is_full() {
             let last = core::mem::replace(&mut self.array[self.len - 1], MaybeUninit::uninit());
             self.len -= 1;
             Some(unsafe { last.assume_init() })
@@ -178,7 +178,7 @@ fn test_static_stack() {
 }
 impl<T, const N: usize> Stack<T> for StaticStack<T, N> {
     fn push(&mut self, obj: T) -> Option<T> {
-        if self.len() == self.capacity() {
+        if self.is_full() {
             return Some(obj);
         }
         self.array[self.len] = MaybeUninit::new(obj);

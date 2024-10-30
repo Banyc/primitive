@@ -38,6 +38,13 @@ pub trait LenExt: Len {
 }
 impl<T: Len> LenExt for T {}
 
+pub trait Full: Capacity {
+    fn is_full(&self) -> bool {
+        self.capacity() == self.len()
+    }
+}
+impl<T: Capacity> Full for T {}
+
 pub trait Clear {
     fn clear(&mut self);
 }

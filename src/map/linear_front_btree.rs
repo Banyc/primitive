@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::BTreeMap};
 use crate::{
     arena::stack::{Stack, StaticStack},
     seq::{LinearSearch, Seq, SeqMut},
-    Capacity, Len, LenExt,
+    Full, Len, LenExt,
 };
 
 pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
@@ -34,9 +34,8 @@ where
         if self.btree_first.is_some() && *self.btree_first.as_ref().unwrap() <= key {
             return self.btree.insert(key, value);
         }
-        let linear_full = self.linear.len() == self.linear.capacity();
         let linear_last = self.linear.as_slice().last();
-        if linear_full && (linear_last.is_none() || linear_last.unwrap().key < key) {
+        if self.linear.is_full() && (linear_last.is_none() || linear_last.unwrap().key < key) {
             if self.btree_first.is_none() || key < *self.btree_first.as_ref().unwrap() {
                 self.btree_first = Some(key.clone());
             }
@@ -144,7 +143,7 @@ where
             return;
         }
         loop {
-            if self.linear.len() == self.linear.capacity() {
+            if self.linear.is_full() {
                 break;
             }
             let Some((last_key, last_value)) = self.btree.pop_first() else {

@@ -5,7 +5,7 @@ use std::{
 
 use thiserror::Error;
 
-use crate::{Capacity, Clear, Len};
+use crate::{Capacity, Clear, Full, Len};
 
 /// The lower the priority number, the higher the priority
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ impl<T, const P: usize> Queue<T, P> {
     ) -> Result<Option<Entry<T>>, PushError<T>> {
         assert!(pri < P);
         let mut timed_out = None;
-        if self.len() == self.capacity() {
+        if self.is_full() {
             let Some(item) = self.pop_one_timed_out(now) else {
                 return Err(PushError::Cap(item));
             };
