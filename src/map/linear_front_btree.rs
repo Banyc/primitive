@@ -209,7 +209,7 @@ impl<K, V> Ord for OrdEntry<K, V>
 where
     K: Ord,
 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.key.cmp(&other.key)
     }
 }
@@ -217,7 +217,7 @@ impl<K, V> PartialOrd for OrdEntry<K, V>
 where
     K: Ord,
 {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
@@ -249,7 +249,7 @@ mod tests {
 #[cfg(feature = "nightly")]
 #[cfg(test)]
 mod benches {
-    use std::hint::black_box;
+    use core::hint::black_box;
 
     use test::Bencher;
 

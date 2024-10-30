@@ -105,7 +105,7 @@ pub fn advance(buf: &mut &[u8], n: usize) {
 
 #[cfg(test)]
 pub mod tests {
-    use std::{hint::black_box, time::Duration};
+    use core::{hint::black_box, time::Duration};
 
     use crate::{
         ops::unit::{DurationExt, HumanDuration},

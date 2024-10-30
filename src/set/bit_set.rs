@@ -38,9 +38,9 @@ impl BitSet {
         *word = op(args);
         let curr = word.count_ones();
         match prev.cmp(&curr) {
-            std::cmp::Ordering::Less => self.count += usize::try_from(curr - prev).unwrap(),
-            std::cmp::Ordering::Equal => (),
-            std::cmp::Ordering::Greater => self.count -= usize::try_from(prev - curr).unwrap(),
+            core::cmp::Ordering::Less => self.count += usize::try_from(curr - prev).unwrap(),
+            core::cmp::Ordering::Equal => (),
+            core::cmp::Ordering::Greater => self.count -= usize::try_from(prev - curr).unwrap(),
         }
     }
     pub fn set(&mut self, index: usize) {

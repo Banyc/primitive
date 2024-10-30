@@ -228,7 +228,7 @@ mod tests {
 #[cfg(feature = "nightly")]
 #[cfg(test)]
 mod benches {
-    use std::hint::black_box;
+    use core::hint::black_box;
 
     use slotmap::SlotMap;
 

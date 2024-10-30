@@ -85,7 +85,7 @@ impl<T> Default for VecSeg<T> {
 #[cfg(feature = "nightly")]
 #[cfg(test)]
 mod tests {
-    use std::hint::black_box;
+    use core::hint::black_box;
 
     use test::Bencher;
 

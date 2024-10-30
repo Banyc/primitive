@@ -20,12 +20,12 @@ macro_rules! impl_common_real_number_traits {
     ($struct: ident, $value: tt) => {
         impl<F: Float> Eq for $struct<F> {}
         impl<F: Float> PartialOrd for $struct<F> {
-            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
         impl<F: Float> Ord for $struct<F> {
-            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            fn cmp(&self, other: &Self) -> core::cmp::Ordering {
                 unsafe { self.$value.partial_cmp(&other.$value).unwrap_unchecked() }
             }
         }

@@ -74,8 +74,8 @@ impl SparseSet {
     pub fn union<'a>(&'a self, other: &'a Self) -> impl Iterator<Item = usize> + Clone + 'a {
         let bubbles = self.capacity().abs_diff(other.capacity());
         let (short, long) = match self.capacity().cmp(&other.capacity()) {
-            std::cmp::Ordering::Less | std::cmp::Ordering::Equal => (self, other),
-            std::cmp::Ordering::Greater => (other, self),
+            core::cmp::Ordering::Less | core::cmp::Ordering::Equal => (self, other),
+            core::cmp::Ordering::Greater => (other, self),
         };
         let short = short.index.iter().map(|index| index.get());
         let long = long.index.iter().map(|index| index.get());

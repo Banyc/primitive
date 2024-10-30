@@ -128,7 +128,8 @@ impl Clear for Elapsed {
 
 #[cfg(test)]
 mod tests {
-    use std::{num::NonZeroUsize, sync::mpsc};
+    use core::num::NonZeroUsize;
+    use std::sync::mpsc;
 
     use crate::{
         bench::ExpMovVar,

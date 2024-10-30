@@ -12,10 +12,10 @@ impl<T: ToOwned<Owned = T>> RangeAny<T> {
     }
 }
 impl<T> core::ops::RangeBounds<T> for RangeAny<T> {
-    fn start_bound(&self) -> std::ops::Bound<&T> {
+    fn start_bound(&self) -> core::ops::Bound<&T> {
         self.start.as_ref()
     }
-    fn end_bound(&self) -> std::ops::Bound<&T> {
+    fn end_bound(&self) -> core::ops::Bound<&T> {
         self.end.as_ref()
     }
 }

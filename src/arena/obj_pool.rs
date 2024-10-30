@@ -2,11 +2,9 @@ use core::{
     mem::MaybeUninit,
     num::NonZeroUsize,
     ops::{Deref, DerefMut},
+    sync::atomic::{AtomicUsize, Ordering},
 };
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use std::sync::Arc;
 
 use crate::{ops::ring::RingSpace, sync::mutex::SpinMutex};
 
