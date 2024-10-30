@@ -8,6 +8,8 @@ use crate::{
 
 pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
 
+const REFILL_RATIO: f64 = 7. / 8.;
+
 /// It is optimal if:
 ///
 /// - insertions and removals are occasional
@@ -20,20 +22,25 @@ pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
 /// - value size
 #[derive(Debug, Clone)]
 pub struct LinearFrontBTreeMap<K, V, const N: usize> {
+    btree_first: Option<K>,
     linear: StaticStack<OrdEntry<K, V>, N>,
     btree: BTreeMap<K, V>,
 }
 impl<K, V, const N: usize> LinearFrontBTreeMap<K, V, N>
 where
-    K: Ord,
+    K: Ord + Clone,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        if self.btree_first.is_some() && *self.btree_first.as_ref().unwrap() <= key {
+            return self.btree.insert(key, value);
+        }
         let linear_full = self.linear.len() == self.linear.capacity();
-        if linear_full {
-            let last = self.linear.as_slice().last();
-            if last.is_none() || last.unwrap().key < key {
-                return self.btree.insert(key, value);
+        let linear_last = self.linear.as_slice().last();
+        if linear_full && (linear_last.is_none() || linear_last.unwrap().key < key) {
+            if self.btree_first.is_none() || key < *self.btree_first.as_ref().unwrap() {
+                self.btree_first = Some(key.clone());
             }
+            return self.btree.insert(key, value);
         }
         let linear_insert_index = match self.linear.linear_search_by(|entry| entry.key.cmp(&key)) {
             Ok(i) => {
@@ -46,6 +53,7 @@ where
             .linear
             .insert(linear_insert_index, OrdEntry { key, value });
         if let Some(last) = last {
+            self.btree_first = Some(last.key.clone());
             assert!(self.btree.insert(last.key, last.value).is_none());
         }
         None
@@ -87,6 +95,15 @@ where
         if last.key.borrow() < key {
             return self.btree.remove(key);
         }
+        if let Some(btree_first) = &self.btree_first {
+            if btree_first.borrow() <= key {
+                let removed = self.btree.remove(key);
+                if btree_first.borrow() == key {
+                    self.reset_btree_first();
+                }
+                return removed;
+            }
+        }
         let index = self
             .linear
             .linear_search_by(|entry| {
@@ -95,34 +112,60 @@ where
             })
             .ok()?;
         let removed = self.linear.remove(index).value;
-        if let Some((key, value)) = self.btree.pop_first() {
-            self.linear.push(OrdEntry { key, value });
-        }
+        self.refill_linear();
         Some(removed)
     }
     #[must_use]
     pub fn pop_first(&mut self) -> Option<(K, V)> {
         if !self.linear.is_empty() {
             let entry = self.linear.remove(0);
-            if let Some((key, value)) = self.btree.pop_first() {
-                self.linear.push(OrdEntry { key, value });
-            }
+            self.refill_linear();
             return Some((entry.key, entry.value));
         }
-        self.btree.pop_first()
+        let first = self.btree.pop_first();
+        self.reset_btree_first();
+        first
     }
     #[must_use]
     pub fn pop_last(&mut self) -> Option<(K, V)> {
         if let Some(last) = self.btree.pop_last() {
+            if self.btree.is_empty() {
+                self.btree_first = None;
+            }
             return Some(last);
         }
         self.linear.pop().map(|entry| (entry.key, entry.value))
+    }
+    fn refill_linear(&mut self) {
+        if ((N as f64 * REFILL_RATIO) as usize) < self.linear.len() {
+            return;
+        }
+        if self.btree_first.is_none() {
+            return;
+        }
+        loop {
+            if self.linear.len() == self.linear.capacity() {
+                break;
+            }
+            let Some((last_key, last_value)) = self.btree.pop_first() else {
+                break;
+            };
+            self.linear.push(OrdEntry {
+                key: last_key,
+                value: last_value,
+            });
+        }
+        self.reset_btree_first();
+    }
+    fn reset_btree_first(&mut self) {
+        self.btree_first = self.btree.first_key_value().map(|(key, _)| key.clone());
     }
 }
 impl<K, V, const N: usize> LinearFrontBTreeMap<K, V, N> {
     #[must_use]
     pub fn new() -> Self {
         Self {
+            btree_first: None,
             linear: StaticStack::new(),
             btree: BTreeMap::new(),
         }
@@ -248,6 +291,7 @@ mod benches {
         for i in 0..(LINEAR * 2) {
             b.insert(i, RepeatedData::new(i as _));
         }
+        assert_eq!(b.linear.len(), LINEAR);
         bencher.iter(|| {
             for (k, v) in b.iter() {
                 black_box(k);
