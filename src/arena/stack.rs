@@ -158,6 +158,9 @@ impl<T, const N: usize> StaticStack<T, N> {
 #[cfg(test)]
 #[test]
 fn test_static_stack() {
+    let mut s: StaticStack<usize, 0> = StaticStack::new();
+    assert_eq!(s.push(2).unwrap(), 2);
+
     let mut s: StaticStack<usize, 5> = StaticStack::new();
     assert_eq!(s.as_slice(), []);
     s.push(3);
@@ -291,6 +294,9 @@ impl<T, const N: usize> StaticRevStack<T, N> {
 #[cfg(test)]
 #[test]
 fn test_static_rev_stack() {
+    let mut s: StaticRevStack<usize, 0> = StaticRevStack::new();
+    assert_eq!(s.push(2).unwrap(), 2);
+
     let mut s: StaticRevStack<usize, 5> = StaticRevStack::new();
     assert_eq!(s.as_slice(), []);
     s.insert(0, 3);
