@@ -1,7 +1,6 @@
 use core::{
     borrow::Borrow,
     hash::{BuildHasher, Hash},
-    marker::PhantomData,
     num::NonZeroUsize,
 };
 use std::hash::RandomState;
@@ -10,7 +9,6 @@ use std::hash::RandomState;
 pub struct FixedHashMap<K, V, H = RandomState> {
     entries: Vec<Option<(K, V)>>,
     hash_builder: H,
-    _hashing: PhantomData<H>,
 }
 impl<K, V, H> FixedHashMap<K, V, H> {
     #[must_use]
@@ -18,7 +16,6 @@ impl<K, V, H> FixedHashMap<K, V, H> {
         Self {
             entries: (0..size.get()).map(|_| None).collect(),
             hash_builder: hasher,
-            _hashing: PhantomData,
         }
     }
 }
@@ -28,7 +25,6 @@ impl<K, V> FixedHashMap<K, V, RandomState> {
         Self {
             entries: (0..size.get()).map(|_| None).collect(),
             hash_builder: RandomState::new(),
-            _hashing: PhantomData,
         }
     }
 }

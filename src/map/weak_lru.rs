@@ -2,14 +2,12 @@ use std::{
     borrow::Borrow,
     hash::{BuildHasher, RandomState},
     num::NonZeroUsize,
-    time::Instant,
 };
 
 use crate::ops::ring::RingSpace;
 
 use super::fixed_map::FixedHashMap;
 
-/// Slower than [`lru::LruCache`]
 #[derive(Debug, Clone)]
 pub struct WeakLru<K, V, const N: usize, H = RandomState> {
     keys: FixedHashMap<K, usize, H>,
@@ -67,21 +65,19 @@ where
             *self.values[index].as_mut().unwrap().access() = value;
             return;
         }
-        let mut least_access_time: Option<Instant> = None;
+        let mut least_access_times: Option<usize> = None;
         let mut value_index: Option<usize> = None;
         for i in 0..Self::EVICT_WINDOW {
             let i = self.next_evict.ring_add(i, self.values.len() - 1);
             let Some(entry) = &self.values[i] else {
                 value_index = Some(i);
-                break;
+                continue;
             };
-            if let Some(least_access_time) = least_access_time {
-                if least_access_time <= entry.last_access {
-                    continue;
-                }
+            if least_access_times.is_none() || entry.times() < least_access_times.unwrap() {
+                least_access_times = Some(entry.times());
+                value_index = Some(i);
             }
-            least_access_time = Some(entry.last_access);
-            value_index = Some(i);
+            self.values[i].as_mut().unwrap().reset_times();
         }
         if Self::EVICT_WINDOW < self.values.len() {
             self.next_evict = self
@@ -105,7 +101,7 @@ where
 struct Entry<V> {
     value: V,
     key_index: usize,
-    last_access: Instant,
+    times: usize,
 }
 impl<V> Entry<V> {
     #[must_use]
@@ -113,11 +109,17 @@ impl<V> Entry<V> {
         Self {
             value,
             key_index,
-            last_access: Instant::now(),
+            times: 1,
         }
     }
+    pub fn times(&self) -> usize {
+        self.times
+    }
+    pub fn reset_times(&mut self) {
+        self.times = 0;
+    }
     pub fn access(&mut self) -> &mut V {
-        self.last_access = Instant::now();
+        self.times = self.times.saturating_add(1);
         &mut self.value
     }
 }
