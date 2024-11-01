@@ -1,20 +1,32 @@
-use std::{borrow::Borrow, hash::DefaultHasher, num::NonZeroUsize, time::Instant};
+use std::{
+    borrow::Borrow,
+    hash::{BuildHasher, RandomState},
+    num::NonZeroUsize,
+    time::Instant,
+};
 
 use crate::ops::ring::RingSpace;
 
 use super::fixed_map::FixedHashMap;
 
+/// Slower than [`lru::LruCache`]
 #[derive(Debug, Clone)]
-pub struct WeakLru<K, V, const N: usize> {
-    keys: FixedHashMap<K, usize, DefaultHasher>,
-    values: [Option<Entry<V>>; N],
+pub struct WeakLru<K, V, const N: usize, H = RandomState> {
+    keys: FixedHashMap<K, usize, H>,
     next_evict: usize,
+    values: [Option<Entry<V>>; N],
 }
-impl<K, V, const N: usize> WeakLru<K, V, N> {
+impl<K, V, const N: usize> WeakLru<K, V, N, RandomState> {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::with_hasher(RandomState::new())
+    }
+}
+impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
     const EVICT_WINDOW: usize = 4;
     const LOAD_FACTOR: f64 = 0.75;
     #[must_use]
-    pub fn new() -> Self {
+    pub fn with_hasher(hasher: H) -> Self {
         assert!(Self::EVICT_WINDOW <= N);
         let hash_map_size =
             NonZeroUsize::new(N + (N as f64 * (1. / Self::LOAD_FACTOR - 1.)) as usize).unwrap();
@@ -25,7 +37,7 @@ impl<K, V, const N: usize> WeakLru<K, V, N> {
             .ok()
             .unwrap();
         Self {
-            keys: FixedHashMap::new(hash_map_size),
+            keys: FixedHashMap::with_hasher(hash_map_size, hasher),
             values,
             next_evict: 0,
         }
@@ -36,9 +48,10 @@ impl<K, V, const N: usize> Default for WeakLru<K, V, N> {
         Self::new()
     }
 }
-impl<K, V, const N: usize> WeakLru<K, V, N>
+impl<K, V, const N: usize, H> WeakLru<K, V, N, H>
 where
     K: Eq + core::hash::Hash,
+    H: BuildHasher,
 {
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
@@ -141,5 +154,40 @@ mod tests {
         assert_eq!(*lru.get_mut(&5).unwrap(), 5);
         lru.insert(6, 6);
         assert_eq!(*lru.get_mut(&6).unwrap(), 6);
+    }
+}
+
+#[cfg(feature = "nightly")]
+#[cfg(test)]
+mod benches {
+    use test::Bencher;
+
+    use crate::sync::tests::RepeatedData;
+
+    use super::*;
+
+    const LRU_SIZE: usize = 1 << 8;
+    const DATA_SIZE: usize = 1 << 6;
+    const N: usize = 1 << 10;
+
+    #[bench]
+    fn bench_weak_lru(bencher: &mut Bencher) {
+        let mut lru: WeakLru<usize, RepeatedData<u8, DATA_SIZE>, LRU_SIZE, lru::DefaultHasher> =
+            WeakLru::with_hasher(lru::DefaultHasher::default());
+        bencher.iter(|| {
+            for i in 0..N {
+                lru.insert(i, RepeatedData::new(i as _));
+            }
+        });
+    }
+    #[bench]
+    fn bench_lru(bencher: &mut Bencher) {
+        let mut lru: lru::LruCache<usize, RepeatedData<u8, DATA_SIZE>> =
+            lru::LruCache::new(NonZeroUsize::new(LRU_SIZE).unwrap());
+        bencher.iter(|| {
+            for i in 0..N {
+                lru.put(i, RepeatedData::new(i as _));
+            }
+        });
     }
 }

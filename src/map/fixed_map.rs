@@ -1,20 +1,33 @@
 use core::{
     borrow::Borrow,
-    hash::{Hash, Hasher},
+    hash::{BuildHasher, Hash},
     marker::PhantomData,
     num::NonZeroUsize,
 };
+use std::hash::RandomState;
 
 #[derive(Debug, Clone)]
-pub struct FixedHashMap<K, V, H> {
+pub struct FixedHashMap<K, V, H = RandomState> {
     entries: Vec<Option<(K, V)>>,
+    hash_builder: H,
     _hashing: PhantomData<H>,
 }
 impl<K, V, H> FixedHashMap<K, V, H> {
     #[must_use]
+    pub fn with_hasher(size: NonZeroUsize, hasher: H) -> Self {
+        Self {
+            entries: (0..size.get()).map(|_| None).collect(),
+            hash_builder: hasher,
+            _hashing: PhantomData,
+        }
+    }
+}
+impl<K, V> FixedHashMap<K, V, RandomState> {
+    #[must_use]
     pub fn new(size: NonZeroUsize) -> Self {
         Self {
             entries: (0..size.get()).map(|_| None).collect(),
+            hash_builder: RandomState::new(),
             _hashing: PhantomData,
         }
     }
@@ -22,7 +35,7 @@ impl<K, V, H> FixedHashMap<K, V, H> {
 impl<K, V, H> FixedHashMap<K, V, H>
 where
     K: Eq + Hash,
-    H: Hasher + Default,
+    H: BuildHasher,
 {
     pub fn insert(&mut self, key: K, mut value: impl FnMut(usize) -> V) -> (usize, Option<(K, V)>) {
         let index = self.index(&key);
@@ -102,9 +115,49 @@ where
         Q: Eq + Hash + ?Sized,
         K: Borrow<Q>,
     {
-        let mut hasher = H::default();
-        key.hash(&mut hasher);
-        let hash = hasher.finish();
+        let hash = self.hash_builder.hash_one(key);
         hash as usize % self.entries.len()
+    }
+}
+
+#[cfg(feature = "nightly")]
+#[cfg(test)]
+mod benches {
+    use std::collections::HashMap;
+
+    use test::Bencher;
+
+    use crate::sync::tests::RepeatedData;
+
+    use super::*;
+
+    const MAP_SIZE: usize = 1 << 10;
+    const DATA_SIZE: usize = 1 << 6;
+    const N: usize = 1 << 9;
+
+    #[bench]
+    fn bench_fixed_map(bencher: &mut Bencher) {
+        let mut map: FixedHashMap<usize, RepeatedData<u8, DATA_SIZE>> =
+            FixedHashMap::new(NonZeroUsize::new(MAP_SIZE).unwrap());
+        bencher.iter(|| {
+            for i in 0..N {
+                map.insert(i, |_| RepeatedData::new(i as _));
+            }
+            for i in 0..N {
+                map.remove(&i);
+            }
+        });
+    }
+    #[bench]
+    fn bench_hash_map(bencher: &mut Bencher) {
+        let mut map: HashMap<usize, RepeatedData<u8, DATA_SIZE>> = HashMap::new();
+        bencher.iter(|| {
+            for i in 0..N {
+                map.insert(i, RepeatedData::new(i as _));
+            }
+            for i in 0..N {
+                map.remove(&i);
+            }
+        });
     }
 }
