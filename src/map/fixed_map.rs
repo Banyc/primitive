@@ -2,6 +2,7 @@ use core::{
     borrow::Borrow,
     hash::{Hash, Hasher},
     marker::PhantomData,
+    num::NonZeroUsize,
 };
 
 #[derive(Debug, Clone)]
@@ -11,9 +12,9 @@ pub struct FixedHashMap<K, V, H> {
 }
 impl<K, V, H> FixedHashMap<K, V, H> {
     #[must_use]
-    pub fn new(size: usize) -> Self {
+    pub fn new(size: NonZeroUsize) -> Self {
         Self {
-            entries: (0..size).map(|_| None).collect(),
+            entries: (0..size.get()).map(|_| None).collect(),
             _hashing: PhantomData,
         }
     }
@@ -23,20 +24,37 @@ where
     K: Eq + Hash,
     H: Hasher + Default,
 {
-    pub fn insert(&mut self, key: K, value: V) -> (usize, Option<(K, V)>) {
+    pub fn insert(&mut self, key: K, mut value: impl FnMut(usize) -> V) -> (usize, Option<(K, V)>) {
         let index = self.index(&key);
         let ejected = match &mut self.entries[index] {
             Some((k, v)) => {
                 let k = core::mem::replace(k, key);
-                let v = core::mem::replace(v, value);
+                let v = core::mem::replace(v, value(index));
                 Some((k, v))
             }
             None => {
-                self.entries[index] = Some((key, value));
+                self.entries[index] = Some((key, value(index)));
                 None
             }
         };
         (index, ejected)
+    }
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        Q: Eq + Hash + ?Sized,
+        K: Borrow<Q>,
+    {
+        let index = self.index(key);
+        let Some((k, _)) = &self.entries[index] else {
+            return None;
+        };
+        if k.borrow() != key {
+            return None;
+        }
+        self.entries[index].take().map(|(_, v)| v)
+    }
+    pub fn remove_entry(&mut self, index: usize) -> Option<(K, V)> {
+        self.entries[index].take()
     }
     #[must_use]
     pub fn entry(&self, index: usize) -> Option<(&K, &V)> {
