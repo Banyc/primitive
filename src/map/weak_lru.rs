@@ -58,7 +58,7 @@ where
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
-        Q: Eq + core::hash::Hash,
+        Q: Eq + core::hash::Hash + ?Sized,
     {
         let index = *self.keys.get(key)?;
         Some(self.values[index].as_mut().unwrap().access())
