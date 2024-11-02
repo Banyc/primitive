@@ -24,11 +24,13 @@ impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
     const EVICT_WINDOW: usize = 4;
     /// 30% collision rate
     const LOAD_FACTOR: f64 = 0.75;
+    const WAYS: usize = 4;
     #[must_use]
     pub fn with_hasher(hasher: H) -> Self {
         assert!(Self::EVICT_WINDOW <= N);
-        let hash_map_size =
+        let direct_sets =
             NonZeroUsize::new(N + (N as f64 * (1. / Self::LOAD_FACTOR - 1.)) as usize).unwrap();
+        let assoc_ways = NonZeroUsize::new(Self::WAYS).unwrap();
         let values = (0..N)
             .map(|_| None)
             .collect::<Vec<_>>()
@@ -36,7 +38,7 @@ impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
             .ok()
             .unwrap();
         Self {
-            keys: FixedHashMap::with_hasher(hash_map_size, hasher),
+            keys: FixedHashMap::with_hasher(direct_sets, assoc_ways, hasher),
             values,
             next_evict: 0,
         }
