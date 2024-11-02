@@ -22,8 +22,8 @@ impl<K, V, const N: usize> WeakLru<K, V, N, RandomState> {
 }
 impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
     const EVICT_WINDOW: usize = 4;
-    /// 30% collision rate
-    const KEYS_LOAD_FACTOR: f64 = 0.75;
+    /// 2% wrongful key eviction rate
+    const KEYS_LOAD_FACTOR: f64 = 0.2;
     const KEYS_ASSOC_WAYS: usize = 2;
     #[must_use]
     pub fn with_hasher(hasher: H) -> Self {
@@ -175,9 +175,9 @@ mod benches {
 
     use super::*;
 
-    const LRU_SIZE: usize = 1 << 8;
+    const LRU_SIZE: usize = 1 << 9;
     const DATA_SIZE: usize = 1 << 6;
-    const N: usize = 1 << 10;
+    const N: usize = 1 << 12;
 
     #[bench]
     fn bench_weak_lru(bencher: &mut Bencher) {

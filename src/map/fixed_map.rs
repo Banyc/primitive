@@ -203,18 +203,26 @@ mod tests {
             for sample in 0..SAMPLES {
                 let hash = buildup_hasher.hash_one(sample);
                 let i = hash as usize % space.len();
-                if 0 < space[i] {
+                if 1 <= space[i] {
                     buildup_collisions += 1;
                 }
                 space[i] += 1;
             }
             let buildup_rate = buildup_collisions as f64 / SAMPLES as f64;
             let mut saturated_collisions = 0;
+            let mut saturated_collisions_2 = 0;
+            let mut saturated_collisions_4 = 0;
             for sample in 0..SAMPLES {
                 let hash = saturated_hasher.hash_one(sample);
                 let i = hash as usize % space.len();
-                if 0 < space[i] {
+                if 1 <= space[i] {
                     saturated_collisions += 1;
+                }
+                if 2 <= space[i] {
+                    saturated_collisions_2 += 1;
+                }
+                if 4 <= space[i] {
+                    saturated_collisions_4 += 1;
                 }
             }
             let max_hits = space.iter().max().unwrap();
@@ -223,8 +231,10 @@ mod tests {
                 .map(|&x| x as f64 / space.len() as f64)
                 .sum::<f64>();
             let saturated_rate = saturated_collisions as f64 / SAMPLES as f64;
+            let saturated_rate_2 = saturated_collisions_2 as f64 / SAMPLES as f64;
+            let saturated_rate_4 = saturated_collisions_4 as f64 / SAMPLES as f64;
             let len_rate = len as f64 / SAMPLES as f64;
-            println!("load factor: {load_factor}; buildup rate: {buildup_rate}; saturated rate: {saturated_rate}; len rate: {len_rate}; max: {max_hits}; mean: {mean_hits};");
+            println!("load factor: {load_factor}; buildup rate: {buildup_rate}; saturated rate: {saturated_rate}; saturated rate 2: {saturated_rate_2}; saturated rate 4: {saturated_rate_4}; len rate: {len_rate}; max: {max_hits}; mean: {mean_hits};");
         }
     }
 }
