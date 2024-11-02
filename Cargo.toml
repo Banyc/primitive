@@ -9,6 +9,7 @@ num-traits = "0.2"
 thiserror = "1"
 
 [dev-dependencies]
+ahash = "0.8"
 crossbeam = "0.8"
 hashbrown = "0.15"
 indexmap = "2"

@@ -200,8 +200,22 @@ mod benches {
     }
     #[bench]
     fn bench_weak_lru_hashbrown(bencher: &mut Bencher) {
-        let mut lru: WeakLru<usize, RepeatedData<u8, DATA_SIZE>, LRU_SIZE, lru::DefaultHasher> =
-            WeakLru::with_hasher(lru::DefaultHasher::default());
+        let mut lru: WeakLru<
+            usize,
+            RepeatedData<u8, DATA_SIZE>,
+            LRU_SIZE,
+            hashbrown::DefaultHashBuilder,
+        > = WeakLru::with_hasher(hashbrown::DefaultHashBuilder::default());
+        bencher.iter(|| {
+            for i in 0..N {
+                lru.insert(i, RepeatedData::new(i as _));
+            }
+        });
+    }
+    #[bench]
+    fn bench_weak_lru_ahash(bencher: &mut Bencher) {
+        let mut lru: WeakLru<usize, RepeatedData<u8, DATA_SIZE>, LRU_SIZE, ahash::RandomState> =
+            WeakLru::with_hasher(ahash::RandomState::default());
         bencher.iter(|| {
             for i in 0..N {
                 lru.insert(i, RepeatedData::new(i as _));
