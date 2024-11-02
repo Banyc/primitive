@@ -6,7 +6,7 @@ use std::{
 
 use crate::ops::ring::RingSpace;
 
-use super::fixed_map::FixedHashMap;
+use super::fixed_map::{FixedHashMap, GetOrInsert};
 
 #[derive(Debug, Clone)]
 pub struct WeakLru<K, V, const N: usize, H = RandomState> {
@@ -65,50 +65,60 @@ where
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        if let Some(&index) = self.keys.get(&key) {
-            *self.values[index].as_mut().unwrap().access() = value;
-            return;
-        }
-        let mut least_access_times: Option<usize> = None;
-        let mut value_index: Option<usize> = None;
-        for i in 0..Self::EVICT_WINDOW {
-            let i = self.next_evict.ring_add(i, self.values.len() - 1);
-            let init = least_access_times.is_none() && value_index.is_none();
-            let empty = least_access_times.is_none() && value_index.is_some();
-            let some = least_access_times.is_some() && value_index.is_some();
-            let invalid = least_access_times.is_some() && value_index.is_none();
-            debug_assert!(!invalid);
-            let Some(entry) = &mut self.values[i] else {
-                // performance: This condition probably messes up the branch prediction
-                // if empty {
-                //     continue;
-                // }
-                least_access_times = None;
-                value_index = Some(i);
-                continue;
-            };
-            if init || (some && entry.times() < least_access_times.unwrap()) {
-                debug_assert!(!empty);
-                least_access_times = Some(entry.times());
-                value_index = Some(i);
+        let mut final_value_index = None;
+        let res = self.keys.get_or_insert(key, |_| {
+            let mut least_access_times: Option<usize> = None;
+            let mut value_index: Option<usize> = None;
+            for i in 0..Self::EVICT_WINDOW {
+                let i = self.next_evict.ring_add(i, self.values.len() - 1);
+                let init = least_access_times.is_none() && value_index.is_none();
+                let empty = least_access_times.is_none() && value_index.is_some();
+                let some = least_access_times.is_some() && value_index.is_some();
+                let invalid = least_access_times.is_some() && value_index.is_none();
+                debug_assert!(!invalid);
+                let Some(entry) = &mut self.values[i] else {
+                    // performance: This condition probably messes up the branch prediction
+                    // if empty {
+                    //     continue;
+                    // }
+                    least_access_times = None;
+                    value_index = Some(i);
+                    continue;
+                };
+                if init || (some && entry.times() < least_access_times.unwrap()) {
+                    debug_assert!(!empty);
+                    least_access_times = Some(entry.times());
+                    value_index = Some(i);
+                }
+                entry.reset_times();
             }
-            entry.reset_times();
+            if Self::EVICT_WINDOW < self.values.len() {
+                self.next_evict = self
+                    .next_evict
+                    .ring_add(Self::EVICT_WINDOW, self.values.len() - 1);
+            }
+            let value_index = value_index.unwrap();
+            final_value_index = Some(value_index);
+            value_index
+        });
+        match res {
+            GetOrInsert::Get(&index) => {
+                *self.values[index].as_mut().unwrap().access() = value;
+            }
+            GetOrInsert::Insert((key_index, collided)) => {
+                if let Some((_, value_index)) = collided {
+                    self.values[value_index] = None;
+                }
+                let value_index = final_value_index.unwrap();
+                let entry = self.values[value_index].take();
+                if let Some(entry) = entry {
+                    if entry.key_index != key_index {
+                        self.keys.remove_entry(entry.key_index);
+                    }
+                }
+                self.values[value_index] = Some(Entry::new(value, key_index));
+            }
         }
-        if Self::EVICT_WINDOW < self.values.len() {
-            self.next_evict = self
-                .next_evict
-                .ring_add(Self::EVICT_WINDOW, self.values.len() - 1);
-        }
-        let value_index = value_index.unwrap();
-        let entry = self.values[value_index].take();
-        if let Some(entry) = entry {
-            self.keys.remove_entry(entry.key_index);
-        }
-        let (key_index, collided) = self.keys.insert(key, |_| value_index);
-        if let Some((_, value_index)) = collided {
-            self.values[value_index] = None;
-        }
-        self.values[value_index] = Some(Entry::new(value, key_index));
     }
 }
 
@@ -181,6 +191,15 @@ mod benches {
 
     #[bench]
     fn bench_weak_lru(bencher: &mut Bencher) {
+        let mut lru: WeakLru<usize, RepeatedData<u8, DATA_SIZE>, LRU_SIZE> = WeakLru::new();
+        bencher.iter(|| {
+            for i in 0..N {
+                lru.insert(i, RepeatedData::new(i as _));
+            }
+        });
+    }
+    #[bench]
+    fn bench_weak_lru_hashbrown(bencher: &mut Bencher) {
         let mut lru: WeakLru<usize, RepeatedData<u8, DATA_SIZE>, LRU_SIZE, lru::DefaultHasher> =
             WeakLru::with_hasher(lru::DefaultHasher::default());
         bencher.iter(|| {

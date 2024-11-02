@@ -40,6 +40,18 @@ where
     K: Eq + Hash,
     H: BuildHasher,
 {
+    pub fn get_or_insert(
+        &mut self,
+        key: K,
+        value: impl FnMut(usize) -> V,
+    ) -> GetOrInsert<'_, K, V> {
+        let hash = self.hash_builder.hash_one(&key);
+        if let Some(index) = self.get_index_pre_hashed(&key, hash) {
+            let (_, v) = self.entries[index].as_ref().unwrap();
+            return GetOrInsert::Get(v);
+        }
+        GetOrInsert::Insert(self.force_insert(key, hash, value))
+    }
     pub fn insert(&mut self, key: K, mut value: impl FnMut(usize) -> V) -> (usize, Option<(K, V)>) {
         let hash = self.hash_builder.hash_one(&key);
         if let Some(index) = self.get_index_pre_hashed(&key, hash) {
@@ -47,6 +59,14 @@ where
             self.entries[index] = Some((key, value(index)));
             return (index, Some(old));
         }
+        self.force_insert(key, hash, value)
+    }
+    fn force_insert(
+        &mut self,
+        key: K,
+        hash: u64,
+        mut value: impl FnMut(usize) -> V,
+    ) -> (usize, Option<(K, V)>) {
         let set_index = self.set_index(hash);
         let ways = &self.entries[self.ways(set_index)];
         let way_index = ways.iter().position(|entry| entry.is_none());
@@ -158,6 +178,11 @@ where
     fn set_index(&self, hash: u64) -> usize {
         hash as usize % self.direct_sets.get()
     }
+}
+#[derive(Debug, Clone, Copy)]
+pub enum GetOrInsert<'a, K, V> {
+    Get(&'a V),
+    Insert((usize, Option<(K, V)>)),
 }
 
 #[cfg(test)]
