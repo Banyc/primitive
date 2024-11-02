@@ -189,14 +189,19 @@ mod benches {
     const DATA_SIZE: usize = 1 << 6;
     const N: usize = 1 << 12;
 
+    macro_rules! weak_lru_insert {
+        ($bencher: ident, $lru: ident) => {
+            $bencher.iter(|| {
+                for i in 0..N {
+                    $lru.insert(i, RepeatedData::new(i as _));
+                }
+            });
+        };
+    }
     #[bench]
     fn bench_weak_lru(bencher: &mut Bencher) {
         let mut lru: WeakLru<usize, RepeatedData<u8, DATA_SIZE>, LRU_SIZE> = WeakLru::new();
-        bencher.iter(|| {
-            for i in 0..N {
-                lru.insert(i, RepeatedData::new(i as _));
-            }
-        });
+        weak_lru_insert!(bencher, lru);
     }
     #[bench]
     fn bench_weak_lru_hashbrown(bencher: &mut Bencher) {
@@ -206,21 +211,13 @@ mod benches {
             LRU_SIZE,
             hashbrown::DefaultHashBuilder,
         > = WeakLru::with_hasher(hashbrown::DefaultHashBuilder::default());
-        bencher.iter(|| {
-            for i in 0..N {
-                lru.insert(i, RepeatedData::new(i as _));
-            }
-        });
+        weak_lru_insert!(bencher, lru);
     }
     #[bench]
     fn bench_weak_lru_ahash(bencher: &mut Bencher) {
         let mut lru: WeakLru<usize, RepeatedData<u8, DATA_SIZE>, LRU_SIZE, ahash::RandomState> =
             WeakLru::with_hasher(ahash::RandomState::default());
-        bencher.iter(|| {
-            for i in 0..N {
-                lru.insert(i, RepeatedData::new(i as _));
-            }
-        });
+        weak_lru_insert!(bencher, lru);
     }
     #[bench]
     fn bench_lru(bencher: &mut Bencher) {

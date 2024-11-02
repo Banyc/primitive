@@ -259,58 +259,53 @@ mod benches {
     const LINEAR: usize = 11;
     const DATA_SIZE: usize = 1 << 6;
 
+    macro_rules! insert_remove {
+        ($bencher: ident, $b: ident) => {
+            $bencher.iter(|| {
+                for i in (0..(LINEAR * 2)).rev() {
+                    $b.insert(i, RepeatedData::new(i as _));
+                }
+                for i in 0..(LINEAR * 2) {
+                    $b.remove(&i);
+                }
+            });
+        };
+    }
     #[bench]
     fn bench_insert_remove_linear_front_btree(bencher: &mut Bencher) {
         let mut b: LinearFrontBTreeMap<usize, RepeatedData<u8, DATA_SIZE>, LINEAR> =
             LinearFrontBTreeMap::new();
-        bencher.iter(|| {
-            for i in (0..(LINEAR * 2)).rev() {
-                b.insert(i, RepeatedData::new(i as _));
-            }
-            for i in 0..(LINEAR * 2) {
-                b.remove(&i);
-            }
-        });
+        insert_remove!(bencher, b);
     }
     #[bench]
     fn bench_insert_remove_btree(bencher: &mut Bencher) {
         let mut b: BTreeMap<usize, RepeatedData<u8, DATA_SIZE>> = BTreeMap::new();
-        bencher.iter(|| {
-            for i in (0..(LINEAR * 2)).rev() {
-                b.insert(i, RepeatedData::new(i as _));
-            }
-            for i in 0..(LINEAR * 2) {
-                b.remove(&i);
-            }
-        });
+        insert_remove!(bencher, b);
     }
 
+    macro_rules! iter {
+        ($bencher: ident, $b: ident) => {
+            for i in 0..(LINEAR * 2) {
+                $b.insert(i, RepeatedData::new(i as _));
+            }
+            $bencher.iter(|| {
+                for (k, v) in $b.iter() {
+                    black_box(k);
+                    black_box(v);
+                }
+            });
+        };
+    }
     #[bench]
     fn bench_iter_linear_front_btree(bencher: &mut Bencher) {
         let mut b: LinearFrontBTreeMap<usize, RepeatedData<u8, DATA_SIZE>, LINEAR> =
             LinearFrontBTreeMap::new();
-        for i in 0..(LINEAR * 2) {
-            b.insert(i, RepeatedData::new(i as _));
-        }
+        iter!(bencher, b);
         assert_eq!(b.linear.len(), LINEAR);
-        bencher.iter(|| {
-            for (k, v) in b.iter() {
-                black_box(k);
-                black_box(v);
-            }
-        });
     }
     #[bench]
     fn bench_iter_btree(bencher: &mut Bencher) {
         let mut b: BTreeMap<usize, RepeatedData<u8, DATA_SIZE>> = BTreeMap::new();
-        for i in 0..(LINEAR * 2) {
-            b.insert(i, RepeatedData::new(i as _));
-        }
-        bencher.iter(|| {
-            for (k, v) in b.iter() {
-                black_box(k);
-                black_box(v);
-            }
-        });
+        iter!(bencher, b);
     }
 }
