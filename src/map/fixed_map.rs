@@ -166,36 +166,25 @@ mod tests {
 
     #[test]
     fn test_fixed_map() {
+        const N: usize = 1 << 10;
+
         let direct_sets = NonZeroUsize::new(4).unwrap();
         let assoc_ways = NonZeroUsize::new(1).unwrap();
         let mut map = FixedHashMap::new(direct_sets, assoc_ways);
-        map.insert(1, |_| 1);
-        assert_eq!(*map.get_mut(&1).unwrap(), 1);
-        map.insert(2, |_| 2);
-        assert_eq!(*map.get_mut(&2).unwrap(), 2);
-        map.insert(3, |_| 3);
-        assert_eq!(*map.get_mut(&3).unwrap(), 3);
-        map.insert(4, |_| 4);
-        assert_eq!(*map.get_mut(&4).unwrap(), 4);
-        map.insert(5, |_| 5);
-        assert_eq!(*map.get_mut(&5).unwrap(), 5);
+        for i in 0..N {
+            map.insert(i, |_| i);
+            assert_eq!(*map.get_mut(&i).unwrap(), i);
+        }
         dbg!(&map);
 
         let direct_sets = NonZeroUsize::new(5).unwrap();
         let assoc_ways = NonZeroUsize::new(2).unwrap();
         let mut map = FixedHashMap::new(direct_sets, assoc_ways);
-        map.insert(1, |_| 1);
-        assert_eq!(*map.get_mut(&1).unwrap(), 1);
-        map.insert(2, |_| 2);
-        assert_eq!(*map.get_mut(&2).unwrap(), 2);
-        map.insert(3, |_| 3);
-        assert_eq!(*map.get_mut(&3).unwrap(), 3);
-        map.insert(4, |_| 4);
-        assert_eq!(*map.get_mut(&4).unwrap(), 4);
-        map.insert(5, |_| 5);
-        assert_eq!(*map.get_mut(&5).unwrap(), 5);
-        map.insert(6, |_| 6);
-        assert_eq!(*map.get_mut(&6).unwrap(), 6);
+        for i in 0..N {
+            map.insert(i, |_| i);
+            assert_eq!(*map.get_mut(&i).unwrap(), i);
+        }
+        dbg!(&map);
     }
 
     #[test]

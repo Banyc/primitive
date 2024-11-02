@@ -23,14 +23,15 @@ impl<K, V, const N: usize> WeakLru<K, V, N, RandomState> {
 impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
     const EVICT_WINDOW: usize = 4;
     /// 30% collision rate
-    const LOAD_FACTOR: f64 = 0.75;
-    const WAYS: usize = 4;
+    const KEYS_LOAD_FACTOR: f64 = 0.75;
+    const KEYS_ASSOC_WAYS: usize = 2;
     #[must_use]
     pub fn with_hasher(hasher: H) -> Self {
         assert!(Self::EVICT_WINDOW <= N);
         let direct_sets =
-            NonZeroUsize::new(N + (N as f64 * (1. / Self::LOAD_FACTOR - 1.)) as usize).unwrap();
-        let assoc_ways = NonZeroUsize::new(Self::WAYS).unwrap();
+            NonZeroUsize::new(N + (N as f64 * (1. / Self::KEYS_LOAD_FACTOR - 1.)) as usize)
+                .unwrap();
+        let assoc_ways = NonZeroUsize::new(Self::KEYS_ASSOC_WAYS).unwrap();
         let values = (0..N)
             .map(|_| None)
             .collect::<Vec<_>>()
@@ -72,15 +73,26 @@ where
         let mut value_index: Option<usize> = None;
         for i in 0..Self::EVICT_WINDOW {
             let i = self.next_evict.ring_add(i, self.values.len() - 1);
-            let Some(entry) = &self.values[i] else {
+            let init = least_access_times.is_none() && value_index.is_none();
+            let empty = least_access_times.is_none() && value_index.is_some();
+            let some = least_access_times.is_some() && value_index.is_some();
+            let invalid = least_access_times.is_some() && value_index.is_none();
+            debug_assert!(!invalid);
+            let Some(entry) = &mut self.values[i] else {
+                // performance: This condition probably messes up the branch prediction
+                // if empty {
+                //     continue;
+                // }
+                least_access_times = None;
                 value_index = Some(i);
                 continue;
             };
-            if least_access_times.is_none() || entry.times() < least_access_times.unwrap() {
+            if init || (some && entry.times() < least_access_times.unwrap()) {
+                debug_assert!(!empty);
                 least_access_times = Some(entry.times());
                 value_index = Some(i);
             }
-            self.values[i].as_mut().unwrap().reset_times();
+            entry.reset_times();
         }
         if Self::EVICT_WINDOW < self.values.len() {
             self.next_evict = self
@@ -133,32 +145,24 @@ mod tests {
 
     #[test]
     fn test_weak_lru() {
+        const N: usize = 1 << 10;
+
         let mut lru: WeakLru<_, _, 4> = WeakLru::new();
-        lru.insert(1, 1);
-        assert_eq!(*lru.get_mut(&1).unwrap(), 1);
-        lru.insert(2, 2);
-        assert_eq!(*lru.get_mut(&2).unwrap(), 2);
-        lru.insert(3, 3);
-        assert_eq!(*lru.get_mut(&3).unwrap(), 3);
-        lru.insert(4, 4);
-        assert_eq!(*lru.get_mut(&4).unwrap(), 4);
-        lru.insert(5, 5);
-        assert_eq!(*lru.get_mut(&5).unwrap(), 5);
+        for i in 0..N {
+            if i == N - 1 {
+                dbg!(&lru);
+            }
+            lru.insert(i, i);
+            assert_eq!(*lru.get_mut(&i).unwrap(), i);
+        }
         dbg!(&lru);
 
         let mut lru: WeakLru<_, _, 5> = WeakLru::new();
-        lru.insert(1, 1);
-        assert_eq!(*lru.get_mut(&1).unwrap(), 1);
-        lru.insert(2, 2);
-        assert_eq!(*lru.get_mut(&2).unwrap(), 2);
-        lru.insert(3, 3);
-        assert_eq!(*lru.get_mut(&3).unwrap(), 3);
-        lru.insert(4, 4);
-        assert_eq!(*lru.get_mut(&4).unwrap(), 4);
-        lru.insert(5, 5);
-        assert_eq!(*lru.get_mut(&5).unwrap(), 5);
-        lru.insert(6, 6);
-        assert_eq!(*lru.get_mut(&6).unwrap(), 6);
+        for i in 0..N {
+            lru.insert(i, i);
+            assert_eq!(*lru.get_mut(&i).unwrap(), i);
+        }
+        dbg!(&lru);
     }
 }
 
