@@ -22,6 +22,7 @@ impl<K, V, const N: usize> WeakLru<K, V, N, RandomState> {
 }
 impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
     const EVICT_WINDOW: usize = 4;
+    /// 30% collision rate
     const LOAD_FACTOR: f64 = 0.75;
     #[must_use]
     pub fn with_hasher(hasher: H) -> Self {

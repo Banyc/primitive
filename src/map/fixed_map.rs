@@ -116,6 +116,52 @@ where
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore]
+    fn test_load_factors() {
+        const SAMPLES: usize = 1 << 10;
+        let load_factors = [
+            0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.,
+        ];
+        let buildup_hasher = RandomState::new();
+        let saturated_hasher = RandomState::new();
+        for load_factor in load_factors {
+            let len = SAMPLES + ((1. / load_factor - 1.) * SAMPLES as f64) as usize;
+            let mut space = vec![0; len];
+            let mut buildup_collisions = 0;
+            for sample in 0..SAMPLES {
+                let hash = buildup_hasher.hash_one(sample);
+                let i = hash as usize % space.len();
+                if 0 < space[i] {
+                    buildup_collisions += 1;
+                }
+                space[i] += 1;
+            }
+            let buildup_rate = buildup_collisions as f64 / SAMPLES as f64;
+            let mut saturated_collisions = 0;
+            for sample in 0..SAMPLES {
+                let hash = saturated_hasher.hash_one(sample);
+                let i = hash as usize % space.len();
+                if 0 < space[i] {
+                    saturated_collisions += 1;
+                }
+            }
+            let max_hits = space.iter().max().unwrap();
+            let mean_hits = space
+                .iter()
+                .map(|&x| x as f64 / space.len() as f64)
+                .sum::<f64>();
+            let saturated_rate = saturated_collisions as f64 / SAMPLES as f64;
+            let len_rate = len as f64 / SAMPLES as f64;
+            println!("load factor: {load_factor}; buildup rate: {buildup_rate}; saturated rate: {saturated_rate}; len rate: {len_rate}; max: {max_hits}; mean: {mean_hits};");
+        }
+    }
+}
+
 #[cfg(feature = "nightly")]
 #[cfg(test)]
 mod benches {
