@@ -52,6 +52,12 @@ impl<T> SpinMutex<T> {
         }
         SpinMutexScoped { mutex: self }
     }
+    pub fn try_lock(&self) -> Option<SpinMutexScoped<T>> {
+        if !self.lock.try_lock() {
+            return None;
+        }
+        Some(SpinMutexScoped { mutex: self })
+    }
 }
 #[derive(Debug)]
 pub struct SpinMutexScoped<'a, T> {
