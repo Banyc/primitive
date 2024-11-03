@@ -77,7 +77,7 @@ where
                 let invalid = least_access_times.is_some() && value_index.is_none();
                 debug_assert!(!invalid);
                 let Some(entry) = &mut self.values[i] else {
-                    // performance: This condition probably messes up the branch prediction
+                    // performance: This causes the function to generate extra instructions and use too many saved registers
                     // if empty {
                     //     continue;
                     // }
