@@ -102,16 +102,16 @@ where
             value_index
         });
         match res {
-            GetOrInsert::Get(&index) => {
-                *self.values[index].as_mut().unwrap().access() = value;
+            GetOrInsert::Get(&value_index) => {
+                *self.values[value_index].as_mut().unwrap().access() = value;
             }
             GetOrInsert::Insert((key_index, collided)) => {
                 if let Some((_, value_index)) = collided {
                     self.values[value_index] = None;
                 }
                 let value_index = final_value_index.unwrap();
-                let entry = self.values[value_index].take();
-                if let Some(entry) = entry {
+                let ejected_entry = self.values[value_index].take();
+                if let Some(entry) = ejected_entry {
                     if entry.key_index != key_index {
                         self.keys.remove_entry(entry.key_index);
                     }

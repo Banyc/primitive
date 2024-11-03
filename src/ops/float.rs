@@ -90,24 +90,21 @@ impl<F: Float> NonNegF<F> {
 }
 impl_common_real_number_traits!(NonNegF, v);
 
-/// float in \[0, inf)
+/// float in (0, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
 pub struct PosF<F> {
     v: F,
 }
 impl<F: Float> PosF<F> {
     pub fn new(float: F) -> Option<Self> {
-        if !(F::zero()..).contains(&float) {
-            return None;
-        }
-        if float == F::zero() {
+        if NonNegF::new(float)?.get() == F::zero() {
             return None;
         }
         Some(Self { v: float })
     }
     /// # Safety
     ///
-    /// Float must be in \[0, inf)
+    /// Float must be in (0, inf)
     pub const unsafe fn new_unchecked(float: F) -> Self {
         Self { v: float }
     }
