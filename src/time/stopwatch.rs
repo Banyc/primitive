@@ -99,33 +99,6 @@ impl ElapsedStopwatch {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Elapsed {
-    watermark: Duration,
-    start: Instant,
-}
-impl Elapsed {
-    pub fn new(watermark: Duration) -> Self {
-        Self {
-            watermark,
-            start: Instant::now(),
-        }
-    }
-    pub fn elapsed(&self) -> Option<Duration> {
-        let elapsed = self.start.elapsed();
-        if self.watermark <= elapsed {
-            Some(elapsed)
-        } else {
-            None
-        }
-    }
-}
-impl Clear for Elapsed {
-    fn clear(&mut self) {
-        self.start = Instant::now();
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use core::num::NonZeroUsize;
@@ -135,6 +108,7 @@ mod tests {
         bench::ExpMovVar,
         ops::unit::{DurationExt, HumanDuration},
         sync::spmc::{self, spmc_channel},
+        time::timer::Timer,
     };
 
     use super::*;
@@ -287,7 +261,8 @@ mod tests {
         emvar: ExpMovVar<f64>,
         ema_watch: Stopwatch,
         ema_count: u128,
-        elapsed: Elapsed,
+        every: Duration,
+        timer: Timer,
     }
     impl LatencyReport {
         pub fn update(&mut self, start: Instant) {
@@ -296,8 +271,10 @@ mod tests {
             self.emvar.update(latency.as_secs_f64());
             self.ema_count += 1;
             self.ema_watch.pause();
-            if self.elapsed.elapsed().is_some() && self.emvar.var().get().is_some() {
-                self.elapsed.clear();
+            let now = Instant::now();
+            let (set_off, _) = self.timer.ensure_started_and_check(self.every, now);
+            if set_off && self.emvar.var().get().is_some() {
+                self.timer.restart(now);
                 println!(
                     "mean: {:.1}; var: {:.1}; stats overhead: {:.1}",
                     HumanDuration(Duration::from_secs_f64(self.emvar.mean().get().unwrap())),
@@ -315,7 +292,8 @@ mod tests {
                 emvar: ExpMovVar::from_periods(NonZeroUsize::new(16 * 1024).unwrap()),
                 ema_watch: Default::default(),
                 ema_count: Default::default(),
-                elapsed: Elapsed::new(Duration::from_millis(200)),
+                every: Duration::from_millis(200),
+                timer: Timer::new(),
             }
         }
     }

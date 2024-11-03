@@ -106,11 +106,11 @@ pub fn advance(buf: &mut &[u8], n: usize) {
 #[cfg(test)]
 pub mod tests {
     use core::{hint::black_box, time::Duration};
+    use std::time::Instant;
 
     use crate::{
         ops::unit::{DurationExt, HumanDuration},
-        stopwatch::{Elapsed, Stopwatch},
-        Clear,
+        time::{stopwatch::Stopwatch, timer::Timer},
     };
 
     use super::*;
@@ -124,7 +124,7 @@ pub mod tests {
         let a: [u8; LENGTH] = (0..LENGTH as u8).collect::<Vec<u8>>().try_into().unwrap();
         buf.extend(a.iter().copied());
 
-        let mut elapsed = Elapsed::new(REPORT_INTERVAL);
+        let mut timer = Timer::new();
         let mut watch = Stopwatch::default();
         let mut count = 0;
         let mut batch_count = 0;
@@ -136,9 +136,11 @@ pub mod tests {
             watch.pause();
             count += 1;
             assert_eq!(a, b);
-            if elapsed.elapsed().is_some() {
+            let now = Instant::now();
+            let (set_off, _) = timer.ensure_started_and_check(REPORT_INTERVAL, now);
+            if set_off {
                 println!("{:.1}", HumanDuration(watch.elapsed().div_u128(count)));
-                elapsed.clear();
+                timer.restart(now);
                 if batch_count == 2 {
                     break;
                 }
@@ -150,7 +152,7 @@ pub mod tests {
     #[test]
     #[ignore]
     fn test_alloc() {
-        let mut elapsed = Elapsed::new(REPORT_INTERVAL);
+        let mut timer = Timer::new();
         let mut watch = Stopwatch::default();
         let mut count = 0;
         let bytes = [0_u8; LENGTH * 2];
@@ -160,9 +162,11 @@ pub mod tests {
             black_box(a);
             watch.pause();
             count += 1;
-            if elapsed.elapsed().is_some() {
+            let now = Instant::now();
+            let (set_off, _) = timer.ensure_started_and_check(REPORT_INTERVAL, now);
+            if set_off {
                 println!("{:.1}", HumanDuration(watch.elapsed().div_u128(count)));
-                elapsed.clear();
+                timer.restart(now);
             }
         }
     }
@@ -170,7 +174,7 @@ pub mod tests {
     #[test]
     #[ignore]
     fn test_memcpy() {
-        let mut elapsed = Elapsed::new(REPORT_INTERVAL);
+        let mut timer = Timer::new();
         let mut watch = Stopwatch::default();
         let mut count = 0;
         let bytes = [0_u8; LENGTH * 2];
@@ -180,9 +184,11 @@ pub mod tests {
             black_box(a);
             watch.pause();
             count += 1;
-            if elapsed.elapsed().is_some() {
+            let now = Instant::now();
+            let (set_off, _) = timer.ensure_started_and_check(REPORT_INTERVAL, now);
+            if set_off {
                 println!("{:.1}", HumanDuration(watch.elapsed().div_u128(count)));
-                elapsed.clear();
+                timer.restart(now);
             }
         }
     }

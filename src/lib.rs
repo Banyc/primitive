@@ -17,8 +17,8 @@ pub mod ring_seq;
 pub mod seq;
 pub mod set;
 pub mod stacked_state;
-pub mod stopwatch;
 pub mod sync;
+pub mod time;
 
 pub trait Capacity: Len {
     #[must_use]

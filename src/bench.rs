@@ -5,7 +5,7 @@ use num_traits::Float;
 
 use crate::{
     ops::float::{NonNegF, PosF, UnitF},
-    stopwatch::ElapsedStopwatch,
+    time::stopwatch::ElapsedStopwatch,
     Clear,
 };
 
