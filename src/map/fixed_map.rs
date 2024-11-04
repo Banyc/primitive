@@ -77,6 +77,7 @@ where
         let index = self.index(set_index, way_index);
         let ejected = match &mut self.entries[index] {
             Some((k, v)) => {
+                // Faster than mem replacing the entry all at once if the key can be simply loaded in the register
                 let k = core::mem::replace(k, key);
                 let v = core::mem::replace(v, value(index));
                 Some((k, v))
