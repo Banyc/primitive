@@ -4,7 +4,7 @@ use std::{
     num::NonZeroUsize,
 };
 
-use crate::ops::ring::RingSpace;
+use crate::ops::{opt_cmp::MinNoneOptCmp, ring::RingSpace};
 
 use super::fixed_map::{FixedHashMap, GetOrInsert};
 
@@ -72,25 +72,16 @@ where
             for i in 0..Self::EVICT_WINDOW {
                 let i = self.next_evict.ring_add(i, self.values.len() - 1);
                 let init = least_access_times.is_none() && value_index.is_none();
-                let empty = least_access_times.is_none() && value_index.is_some();
-                let some = least_access_times.is_some() && value_index.is_some();
                 let invalid = least_access_times.is_some() && value_index.is_none();
                 debug_assert!(!invalid);
-                let Some(entry) = &mut self.values[i] else {
-                    // performance: This causes the function to generate extra instructions and use too many saved registers
-                    // if empty {
-                    //     continue;
-                    // }
-                    least_access_times = None;
-                    value_index = Some(i);
-                    continue;
-                };
-                if init || (some && entry.times() < least_access_times.unwrap()) {
-                    debug_assert!(!empty);
-                    least_access_times = Some(entry.times());
+                let entry_times = self.values[i].as_ref().map(|entry| entry.times());
+                if init || MinNoneOptCmp(entry_times) < MinNoneOptCmp(least_access_times) {
+                    least_access_times = entry_times;
                     value_index = Some(i);
                 }
-                entry.reset_times();
+                if let Some(entry) = self.values[i].as_mut() {
+                    entry.reset_times();
+                }
             }
             if Self::EVICT_WINDOW < self.values.len() {
                 self.next_evict = self
