@@ -1,6 +1,7 @@
 use core::cmp::Ordering;
 
 /// [`None`] is the least
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MinNoneOptCmp<T>(pub Option<T>);
 impl<T: PartialOrd> PartialOrd for MinNoneOptCmp<T> {
@@ -25,6 +26,7 @@ impl<T: Ord> Ord for MinNoneOptCmp<T> {
 }
 
 /// [`None`] is the greatest
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MaxNoneOptCmp<T>(pub Option<T>);
 impl<T: PartialOrd> PartialOrd for MaxNoneOptCmp<T> {
