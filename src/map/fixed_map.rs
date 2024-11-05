@@ -50,7 +50,7 @@ where
             let (_, v) = self.entries[index].as_ref().unwrap();
             return GetOrInsert::Get(v);
         }
-        GetOrInsert::Insert(self.force_insert(key, hash, value))
+        GetOrInsert::Insert(self.force_insert_pre_hashed(key, hash, value))
     }
     pub fn insert(&mut self, key: K, mut value: impl FnMut(usize) -> V) -> (usize, Option<(K, V)>) {
         let hash = self.hash_builder.hash_one(&key);
@@ -59,9 +59,9 @@ where
             self.entries[index] = Some((key, value(index)));
             return (index, Some(old));
         }
-        self.force_insert(key, hash, value)
+        self.force_insert_pre_hashed(key, hash, value)
     }
-    fn force_insert(
+    fn force_insert_pre_hashed(
         &mut self,
         key: K,
         hash: u64,
