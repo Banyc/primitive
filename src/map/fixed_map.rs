@@ -46,28 +46,29 @@ where
         value: impl FnMut(usize) -> V,
     ) -> GetOrInsert<'_, K, V> {
         let hash = self.hash_builder.hash_one(&key);
-        if let Some(index) = self.get_index_pre_hashed(&key, hash) {
+        let set_index = self.set_index(hash);
+        if let Some(index) = self.get_index_pre_hashed(&key, set_index) {
             let (_, v) = self.entries[index].as_ref().unwrap();
             return GetOrInsert::Get(v);
         }
-        GetOrInsert::Insert(self.force_insert_pre_hashed(key, hash, value))
+        GetOrInsert::Insert(self.force_insert_pre_hashed(key, set_index, value))
     }
     pub fn insert(&mut self, key: K, mut value: impl FnMut(usize) -> V) -> (usize, Option<(K, V)>) {
         let hash = self.hash_builder.hash_one(&key);
-        if let Some(index) = self.get_index_pre_hashed(&key, hash) {
+        let set_index = self.set_index(hash);
+        if let Some(index) = self.get_index_pre_hashed(&key, set_index) {
             let old = self.entries[index].take().unwrap();
             self.entries[index] = Some((key, value(index)));
             return (index, Some(old));
         }
-        self.force_insert_pre_hashed(key, hash, value)
+        self.force_insert_pre_hashed(key, set_index, value)
     }
     fn force_insert_pre_hashed(
         &mut self,
         key: K,
-        hash: u64,
+        set_index: usize,
         mut value: impl FnMut(usize) -> V,
     ) -> (usize, Option<(K, V)>) {
-        let set_index = self.set_index(hash);
         let ways = &self.entries[self.ways(set_index)];
         let way_index = ways.iter().position(|entry| entry.is_none());
         let way_index = way_index.unwrap_or(self.next_way_index);
@@ -137,15 +138,14 @@ where
         K: Borrow<Q>,
     {
         let hash = self.hash_builder.hash_one(key);
-        self.get_index_pre_hashed(key, hash)
+        self.get_index_pre_hashed(key, self.set_index(hash))
     }
     #[must_use]
-    fn get_index_pre_hashed<Q>(&self, key: &Q, hash: u64) -> Option<usize>
+    fn get_index_pre_hashed<Q>(&self, key: &Q, set_index: usize) -> Option<usize>
     where
         Q: Eq + ?Sized,
         K: Borrow<Q>,
     {
-        let set_index = self.set_index(hash);
         let ways = &self.entries[self.ways(set_index)];
         let predicate = |entry: &Option<(K, V)>| {
             let Some((k, _)) = entry else {
