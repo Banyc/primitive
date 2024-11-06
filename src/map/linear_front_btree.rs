@@ -7,9 +7,21 @@ use crate::{
     Full, Len, LenExt,
 };
 
+use super::MapInsert;
+
 pub type LinearFrontBTreeMap11<K, V> = LinearFrontBTreeMap<K, V, 11>;
 
 const REFILL_RATIO: f64 = 5. / 9.;
+
+impl<K, V> MapInsert<K, V> for BTreeMap<K, V>
+where
+    K: Ord,
+{
+    type Out = Option<V>;
+    fn insert(&mut self, key: K, value: V) -> Self::Out {
+        BTreeMap::insert(self, key, value)
+    }
+}
 
 /// It is optimal if:
 ///
@@ -27,11 +39,12 @@ pub struct LinearFrontBTreeMap<K, V, const N: usize> {
     linear: StaticRevStack<OrdEntry<K, V>, N>,
     btree: BTreeMap<K, V>,
 }
-impl<K, V, const N: usize> LinearFrontBTreeMap<K, V, N>
+impl<K, V, const N: usize> MapInsert<K, V> for LinearFrontBTreeMap<K, V, N>
 where
     K: Ord + Clone,
 {
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+    type Out = Option<V>;
+    fn insert(&mut self, key: K, value: V) -> Self::Out {
         if self.btree_first.is_some() && *self.btree_first.as_ref().unwrap() <= key {
             return self.btree.insert(key, value);
         }
@@ -58,6 +71,11 @@ where
         }
         None
     }
+}
+impl<K, V, const N: usize> LinearFrontBTreeMap<K, V, N>
+where
+    K: Ord + Clone,
+{
     #[must_use]
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where

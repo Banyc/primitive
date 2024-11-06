@@ -7,6 +7,11 @@ use std::hash::RandomState;
 
 use crate::ops::ring::RingSpace;
 
+use super::{
+    hash_map::{HashGet, HashGetMut, HashRemove},
+    MapInsert,
+};
+
 #[derive(Debug, Clone)]
 pub struct FixedHashMap<K, V, H = RandomState> {
     entries: Vec<Option<(K, V)>>,
@@ -43,7 +48,7 @@ where
     pub fn get_or_insert(
         &mut self,
         key: K,
-        value: impl FnMut(usize) -> V,
+        value: impl FnOnce(usize) -> V,
     ) -> GetOrInsert<'_, K, V> {
         let hash = self.hash_builder.hash_one(&key);
         let set_index = self.set_index(hash);
@@ -53,7 +58,7 @@ where
         }
         GetOrInsert::Insert(self.force_insert_pre_hashed(key, set_index, value))
     }
-    pub fn insert(&mut self, key: K, mut value: impl FnMut(usize) -> V) -> (usize, Option<(K, V)>) {
+    pub fn insert_2(&mut self, key: K, value: impl FnOnce(usize) -> V) -> (usize, Option<(K, V)>) {
         let hash = self.hash_builder.hash_one(&key);
         let set_index = self.set_index(hash);
         if let Some(index) = self.get_index_pre_hashed(&key, set_index) {
@@ -67,7 +72,7 @@ where
         &mut self,
         key: K,
         set_index: usize,
-        mut value: impl FnMut(usize) -> V,
+        value: impl FnOnce(usize) -> V,
     ) -> (usize, Option<(K, V)>) {
         let ways = &self.entries[self.ways(set_index)];
         let way_index = ways.iter().position(|entry| entry.is_none());
@@ -90,14 +95,6 @@ where
         };
         (index, ejected)
     }
-    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
-    where
-        Q: Eq + Hash + ?Sized,
-        K: Borrow<Q>,
-    {
-        let index = self.get_index(key)?;
-        self.entries[index].take().map(|(_, v)| v)
-    }
     pub fn remove_entry(&mut self, index: usize) -> Option<(K, V)> {
         self.entries[index].take()
     }
@@ -110,26 +107,6 @@ where
     pub fn entry_mut(&mut self, index: usize) -> Option<(&K, &mut V)> {
         let (k, v) = self.entries[index].as_mut()?;
         Some((k, v))
-    }
-    #[must_use]
-    pub fn get<Q>(&self, key: &Q) -> Option<&V>
-    where
-        Q: Eq + Hash + ?Sized,
-        K: Borrow<Q>,
-    {
-        let index = self.get_index(key)?;
-        let (_, v) = self.entries[index].as_ref()?;
-        Some(v)
-    }
-    #[must_use]
-    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
-    where
-        Q: Eq + Hash + ?Sized,
-        K: Borrow<Q>,
-    {
-        let index = self.get_index(key)?;
-        let (_, v) = self.entries[index].as_mut()?;
-        Some(v)
     }
     #[must_use]
     pub fn get_index<Q>(&self, key: &Q) -> Option<usize>
@@ -185,6 +162,61 @@ pub enum GetOrInsert<'a, K, V> {
     Get(&'a V),
     Insert((usize, Option<(K, V)>)),
 }
+impl<K, V, H> HashGet<K, V> for FixedHashMap<K, V, H>
+where
+    K: Eq + Hash,
+    H: BuildHasher,
+{
+    fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        Q: Eq + Hash + ?Sized,
+        K: Borrow<Q>,
+    {
+        let index = self.get_index(key)?;
+        let (_, v) = self.entries[index].as_ref()?;
+        Some(v)
+    }
+}
+impl<K, V, H> HashGetMut<K, V> for FixedHashMap<K, V, H>
+where
+    K: Eq + Hash,
+    H: BuildHasher,
+{
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        Q: Eq + Hash + ?Sized,
+        K: Borrow<Q>,
+    {
+        let index = self.get_index(key)?;
+        let (_, v) = self.entries[index].as_mut()?;
+        Some(v)
+    }
+}
+impl<K, V, H> HashRemove<K, V> for FixedHashMap<K, V, H>
+where
+    K: Eq + Hash,
+    H: BuildHasher,
+{
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        Q: Eq + Hash + ?Sized,
+        K: Borrow<Q>,
+    {
+        let index = self.get_index(key)?;
+        self.entries[index].take().map(|(_, v)| v)
+    }
+}
+impl<K, V, H> MapInsert<K, V> for FixedHashMap<K, V, H>
+where
+    K: Eq + Hash,
+    H: BuildHasher,
+{
+    type Out = Option<(K, V)>;
+    fn insert(&mut self, key: K, value: V) -> Self::Out {
+        let (_, out) = self.insert_2(key, |_| value);
+        out
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -198,7 +230,7 @@ mod tests {
         let assoc_ways = NonZeroUsize::new(1).unwrap();
         let mut map = FixedHashMap::new(direct_sets, assoc_ways);
         for i in 0..N {
-            map.insert(i, |_| i);
+            map.insert_2(i, |_| i);
             assert_eq!(*map.get_mut(&i).unwrap(), i);
         }
         dbg!(&map);
@@ -207,7 +239,7 @@ mod tests {
         let assoc_ways = NonZeroUsize::new(2).unwrap();
         let mut map = FixedHashMap::new(direct_sets, assoc_ways);
         for i in 0..N {
-            map.insert(i, |_| i);
+            map.insert_2(i, |_| i);
             assert_eq!(*map.get_mut(&i).unwrap(), i);
         }
         dbg!(&map);
@@ -288,7 +320,7 @@ mod benches {
             FixedHashMap::new(DIRECT_SETS, ASSOC_WAYS);
         bencher.iter(|| {
             for i in 0..N {
-                map.insert(i, |_| RepeatedData::new(i as _));
+                map.insert_2(i, |_| RepeatedData::new(i as _));
             }
             for i in 0..N {
                 map.remove(&i);

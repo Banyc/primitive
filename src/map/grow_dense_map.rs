@@ -3,6 +3,11 @@ use std::collections::HashMap;
 
 use crate::{arena::stable_vec::StableVec, Clear, Len};
 
+use super::{
+    hash_map::{HashGet, HashGetMut},
+    MapInsert,
+};
+
 #[derive(Debug)]
 pub struct GrowDenseMap<K, V, const CHUNK_SIZE: usize> {
     stable_vec: StableVec<V, CHUNK_SIZE>,
@@ -21,12 +26,12 @@ impl<K, V, const CHUNK_SIZE: usize> Default for GrowDenseMap<K, V, CHUNK_SIZE> {
         Self::new()
     }
 }
-impl<K, V, const CHUNK_SIZE: usize> GrowDenseMap<K, V, CHUNK_SIZE>
+impl<K, V, const CHUNK_SIZE: usize> HashGet<K, V> for GrowDenseMap<K, V, CHUNK_SIZE>
 where
     K: core::hash::Hash + Eq,
 {
     /// fast
-    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
         K: Borrow<Q>,
@@ -34,8 +39,13 @@ where
         let ptr = self.lookup.get(key)?;
         Some(unsafe { ptr.as_ref() })
     }
+}
+impl<K, V, const CHUNK_SIZE: usize> HashGetMut<K, V> for GrowDenseMap<K, V, CHUNK_SIZE>
+where
+    K: core::hash::Hash + Eq,
+{
     /// fast
-    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
         K: Borrow<Q>,
@@ -43,8 +53,14 @@ where
         let ptr = self.lookup.get_mut(key)?;
         Some(unsafe { ptr.as_mut() })
     }
+}
+impl<K, V, const CHUNK_SIZE: usize> MapInsert<K, V> for GrowDenseMap<K, V, CHUNK_SIZE>
+where
+    K: core::hash::Hash + Eq,
+{
+    type Out = ();
     /// slow
-    pub fn insert(&mut self, key: K, value: V) {
+    fn insert(&mut self, key: K, value: V) {
         if let Some(ptr) = self.lookup.get_mut(&key) {
             *unsafe { ptr.as_mut() } = value;
             return;

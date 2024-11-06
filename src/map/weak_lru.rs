@@ -6,7 +6,11 @@ use std::{
 
 use crate::ops::{opt_cmp::MinNoneOptCmp, ring::RingSpace};
 
-use super::fixed_map::{FixedHashMap, GetOrInsert};
+use super::{
+    fixed_map::{FixedHashMap, GetOrInsert},
+    hash_map::{HashGet, HashGetMut},
+    MapInsert,
+};
 
 #[derive(Debug, Clone)]
 pub struct WeakLru<K, V, const N: usize, H = RandomState> {
@@ -50,12 +54,12 @@ impl<K, V, const N: usize> Default for WeakLru<K, V, N> {
         Self::new()
     }
 }
-impl<K, V, const N: usize, H> WeakLru<K, V, N, H>
+impl<K, V, const N: usize, H> HashGetMut<K, V> for WeakLru<K, V, N, H>
 where
     K: Eq + core::hash::Hash,
     H: BuildHasher,
 {
-    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
         Q: Eq + core::hash::Hash + ?Sized,
@@ -63,8 +67,14 @@ where
         let index = *self.keys.get(key)?;
         Some(self.values[index].as_mut().unwrap().access())
     }
-
-    pub fn insert(&mut self, key: K, value: V) {
+}
+impl<K, V, const N: usize, H> MapInsert<K, V> for WeakLru<K, V, N, H>
+where
+    K: Eq + core::hash::Hash,
+    H: BuildHasher,
+{
+    type Out = ();
+    fn insert(&mut self, key: K, value: V) {
         let mut final_value_index = None;
         let res = self.keys.get_or_insert(key, |_| {
             let mut least_access_times: Option<usize> = None;

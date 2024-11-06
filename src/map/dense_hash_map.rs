@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use crate::{Clear, Len};
 
-use super::free_list::{DenseFreeList, FreeList};
+use super::{
+    free_list::{DenseFreeList, FreeList},
+    hash_map::{HashGet, HashGetMut, HashRemove},
+    MapInsert,
+};
 
 /// vs. [`indexmap::IndexMap`]:
 /// - [`Self::values()`]: basically the same
@@ -25,12 +29,13 @@ impl<K, V> Default for DenseHashMap<K, V> {
         Self::new()
     }
 }
-impl<K, V> DenseHashMap<K, V>
+impl<K, V> MapInsert<K, V> for DenseHashMap<K, V>
 where
     K: Eq + core::hash::Hash,
 {
+    type Out = Option<V>;
     /// slower than [`std::collections::HashMap::insert()`]
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+    fn insert(&mut self, key: K, value: V) -> Option<V> {
         let Some(&index) = self.index.get(&key) else {
             let index = self.data.insert(value);
             self.index.insert(key, index);
@@ -41,8 +46,13 @@ where
         self.index.insert(key, index);
         Some(prev)
     }
+}
+impl<K, V> HashRemove<K, V> for DenseHashMap<K, V>
+where
+    K: Eq + core::hash::Hash,
+{
     /// slower than [`std::collections::HashMap::remove()`]:
-    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
         K: core::borrow::Borrow<Q>,
@@ -50,10 +60,14 @@ where
         let index = self.index.remove(key)?;
         self.data.remove(index)
     }
-
+}
+impl<K, V> HashGet<K, V> for DenseHashMap<K, V>
+where
+    K: Eq + core::hash::Hash,
+{
     /// slower than [`std::collections::HashMap::get()`]:
     #[must_use]
-    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
         K: core::borrow::Borrow<Q>,
@@ -61,9 +75,14 @@ where
         let index = *self.index.get(key)?;
         Some(self.data.get(index).unwrap())
     }
+}
+impl<K, V> HashGetMut<K, V> for DenseHashMap<K, V>
+where
+    K: Eq + core::hash::Hash,
+{
     /// slower than [`std::collections::HashMap::get_mut()`]:
     #[must_use]
-    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
         K: core::borrow::Borrow<Q>,
@@ -71,6 +90,11 @@ where
         let index = *self.index.get(key)?;
         Some(self.data.get_mut(index).unwrap())
     }
+}
+impl<K, V> DenseHashMap<K, V>
+where
+    K: Eq + core::hash::Hash,
+{
     /// always faster than [`std::collections::HashMap::values()`]
     pub fn values(&self) -> impl Iterator<Item = &V> {
         self.data.iter().map(|(_, value)| value)

@@ -4,6 +4,11 @@ use std::{
     time::Instant,
 };
 
+use super::{
+    hash_map::{HashGetMut, HashRemove},
+    MapInsert,
+};
+
 #[derive(Debug, Clone)]
 struct HeapValue<K> {
     instant: Instant,
@@ -41,8 +46,9 @@ impl<K, V> ExpiringHashMap<K, V> {
         }
     }
 }
-impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+impl<K: Eq + Hash + Clone, V> MapInsert<K, V> for ExpiringHashMap<K, V> {
+    type Out = Option<V>;
+    fn insert(&mut self, key: K, value: V) -> Option<V> {
         let now = Instant::now();
         match self.hash_map.insert(key.clone(), (now, value)) {
             Some(prev) => Some(prev.1),
@@ -52,7 +58,8 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
             }
         }
     }
-
+}
+impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
     pub fn cleanup(&mut self) {
         let Some(deadline) = Instant::now().checked_sub(self.duration) else {
             return;
@@ -76,23 +83,9 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
             }
         }
     }
-
-    pub fn get<Q>(&mut self, key: &Q) -> Option<&V>
-    where
-        K: Borrow<Q>,
-        Q: ?Sized + Eq + core::hash::Hash,
-    {
-        self.cleanup();
-        match self.hash_map.get_mut(key) {
-            Some((time, value)) => {
-                *time = Instant::now();
-                Some(&*value)
-            }
-            None => None,
-        }
-    }
-
-    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+}
+impl<K: Eq + Hash + Clone, V> HashGetMut<K, V> for ExpiringHashMap<K, V> {
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
         Q: ?Sized + Eq + core::hash::Hash,
@@ -106,8 +99,9 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
             None => None,
         }
     }
-
-    pub fn remove<Q>(&mut self, k: &Q) -> Option<V>
+}
+impl<K: Eq + Hash + Clone, V> HashRemove<K, V> for ExpiringHashMap<K, V> {
+    fn remove<Q>(&mut self, k: &Q) -> Option<V>
     where
         K: Borrow<Q>,
         Q: ?Sized + Eq + core::hash::Hash,

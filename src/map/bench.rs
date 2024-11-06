@@ -7,7 +7,12 @@ mod benches {
 
     use crate::{
         bench::HeapRandomizer,
-        map::{dense_hash_map::DenseHashMap, grow_dense_map::GrowDenseMap},
+        map::{
+            dense_hash_map::DenseHashMap,
+            grow_dense_map::GrowDenseMap,
+            hash_map::{HashGet, HashRemove},
+            MapInsert,
+        },
         Clear,
     };
 

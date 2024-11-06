@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 num-traits = "0.2"
-thiserror = "1"
+thiserror = "2"
 
 [dev-dependencies]
 ahash = "0.8"
