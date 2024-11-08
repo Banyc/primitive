@@ -1,7 +1,7 @@
 use core::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
 
-use crate::{ops::opt_cmp::MinNoneOptCmp, Len};
+use crate::{ops::opt_cmp::MinNoneOptCmp, Clear, Len};
 
 #[derive(Debug, Clone)]
 pub struct OrderedQueue<K, V> {
@@ -63,6 +63,12 @@ impl<K: Ord, V> Default for OrderedQueue<K, V> {
 impl<K, V> Len for OrderedQueue<K, V> {
     fn len(&self) -> usize {
         self.linear.len() + self.min_heap.len()
+    }
+}
+impl<K, V> Clear for OrderedQueue<K, V> {
+    fn clear(&mut self) {
+        self.linear.clear();
+        self.min_heap.clear();
     }
 }
 
