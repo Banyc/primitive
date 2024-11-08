@@ -69,7 +69,7 @@ where
 {
     #[must_use]
     pub fn ord_dist(lo: &Self, hi: &Self) -> T {
-        match Self::cmp(lo, hi) {
+        match Self::ring_cmp(lo, hi) {
             Ordering::Less => hi.v.wrapping_sub(&lo.v),
             Ordering::Greater => lo.v.wrapping_sub(&hi.v),
             Ordering::Equal => T::zero(),
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<T> PartialOrd for RingSeq<T>
+impl<T> RingSeq<T>
 where
     T: Eq
         + Sub<Output = T>
@@ -99,24 +99,7 @@ where
         + Add<Output = T>
         + Div<Output = T>,
 {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T> Ord for RingSeq<T>
-where
-    T: Eq
-        + Sub<Output = T>
-        + PartialOrd
-        + Ord
-        + Copy
-        + Bounded
-        + One
-        + Add<Output = T>
-        + Div<Output = T>,
-{
-    fn cmp(&self, other: &Self) -> Ordering {
+    pub fn ring_cmp(&self, other: &Self) -> Ordering {
         match self.v.partial_cmp(&other.v).unwrap() {
             Ordering::Less => {
                 let diff = other.v - self.v;
@@ -160,14 +143,14 @@ mod tests {
     fn cmp_wraparound() {
         let a = RingSeq::new(u32::MAX);
         let b = RingSeq::new(u32::MIN);
-        assert!(a < b);
+        assert_eq!(a.ring_cmp(&b), core::cmp::Ordering::Less);
     }
 
     #[test]
     fn cmp_no_wraparound() {
         let a = RingSeq::new(0);
         let b = RingSeq::new(1);
-        assert!(a < b);
+        assert_eq!(a.ring_cmp(&b), core::cmp::Ordering::Less);
     }
 
     #[test]
@@ -175,8 +158,8 @@ mod tests {
         let a = RingSeq::new(0);
         let b = RingSeq::new(i32::MAX as u32);
         let c = RingSeq::new(i32::MAX as u32 + 1);
-        assert!(a < b);
-        assert!(c < a);
+        assert_eq!(a.ring_cmp(&b), core::cmp::Ordering::Less);
+        assert_eq!(c.ring_cmp(&a), core::cmp::Ordering::Less);
     }
 
     #[test]
