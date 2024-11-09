@@ -11,6 +11,7 @@ pub struct SendWnd<K, V> {
     queue: VecDeque<V>,
 }
 impl<K, V> SendWnd<K, V> {
+    #[must_use]
     pub fn new(next: K) -> Self {
         Self {
             start: None,
@@ -23,9 +24,11 @@ impl<K, V> SendWnd<K, V> {
         self.next = Some(next);
         self.queue.clear();
     }
+    #[must_use]
     pub fn start(&self) -> Option<&K> {
         self.start.as_ref()
     }
+    #[must_use]
     pub fn next(&self) -> Option<&K> {
         self.next.as_ref()
     }
@@ -55,14 +58,17 @@ impl<K, V> SendWnd<K, V>
 where
     K: CheckedSub + CheckedAdd + One + NumCast + Clone + Eq,
 {
+    #[must_use]
     fn queue_index(&self, key: &K) -> Option<usize> {
         let start = self.start.as_ref()?;
         key.checked_sub(start)?.to_usize()
     }
+    #[must_use]
     pub fn get(&self, key: &K) -> Option<&V> {
         let index = self.queue_index(key)?;
         self.queue.get(index)
     }
+    #[must_use]
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         let index = self.queue_index(key)?;
         self.queue.get_mut(index)
