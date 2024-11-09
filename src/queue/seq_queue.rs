@@ -541,6 +541,7 @@ mod benches {
 
     const SEG_LEN: usize = 1 << 7;
     const N: usize = 1 << 14;
+    const WINDOW_SIZE: usize = 1 << 10;
 
     macro_rules! insert_pop {
         ($bencher: ident, $q: ident) => {
@@ -563,20 +564,72 @@ mod benches {
             });
         };
     }
-
     #[bench]
-    fn bench_unstable_seq_queue(bencher: &mut Bencher) {
+    fn bench_insert_pop_unstable_seq_queue(bencher: &mut Bencher) {
         let mut q = SeqQueue::new_unstable();
         insert_pop!(bencher, q);
     }
     #[bench]
-    fn bench_seq_queue(bencher: &mut Bencher) {
-        let mut q = SeqQueue::new(NonZeroUsize::new(1 << 10).unwrap());
+    fn bench_insert_pop_seq_queue(bencher: &mut Bencher) {
+        let mut q = SeqQueue::new(NonZeroUsize::new(WINDOW_SIZE).unwrap());
         insert_pop!(bencher, q);
     }
     #[bench]
-    fn bench_b_tree(bencher: &mut Bencher) {
+    fn bench_insert_pop_b_tree(bencher: &mut Bencher) {
         let mut q = BTreeSeqQueue::new();
         insert_pop!(bencher, q);
+    }
+
+    #[bench]
+    fn bench_insert_then_pop_unstable_seq_queue(bencher: &mut Bencher) {
+        let mut q = SeqQueue::new_unstable();
+        insert_then_pop_unstable_seq_queue(bencher, &mut q);
+    }
+    #[bench]
+    fn bench_insert_then_pop_seq_queue(bencher: &mut Bencher) {
+        let mut q = SeqQueue::new(NonZeroUsize::new(WINDOW_SIZE).unwrap());
+        insert_then_pop_unstable_seq_queue(bencher, &mut q);
+    }
+    fn insert_then_pop_unstable_seq_queue(bencher: &mut Bencher, q: &mut SeqQueue<usize, usize>) {
+        bencher.iter(|| {
+            q.set_next(0, |_| {});
+            let mut rev = false;
+            for round in 0..(N / SEG_LEN) {
+                let start = round * SEG_LEN;
+                assert_eq!(*q.next().unwrap(), start);
+                for i in 0..SEG_LEN {
+                    let i = if rev {
+                        start + (SEG_LEN - 1 - i)
+                    } else {
+                        start + i
+                    };
+                    let _ = q.insert(i, i, |_| {});
+                }
+                while q.pop(|_| {}).is_some() {}
+                rev = !rev;
+            }
+        });
+    }
+    #[bench]
+    fn bench_insert_then_pop_b_tree(bencher: &mut Bencher) {
+        let mut q = BTreeSeqQueue::new();
+        bencher.iter(|| {
+            q.set_next(0, |_| {});
+            let mut rev = false;
+            for round in 0..(N / SEG_LEN) {
+                let start = round * SEG_LEN;
+                assert_eq!(*q.next().unwrap(), start);
+                for i in 0..SEG_LEN {
+                    let i = if rev {
+                        start + (SEG_LEN - 1 - i)
+                    } else {
+                        start + i
+                    };
+                    let _ = q.insert(i, i, |_| {});
+                }
+                while q.pop().is_some() {}
+                rev = !rev;
+            }
+        });
     }
 }
