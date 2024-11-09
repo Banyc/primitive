@@ -53,6 +53,10 @@ impl BitSet {
         self.bit_op(index, |args| args.word ^ args.pos);
     }
 }
+struct BitOpArgs {
+    pub word: usize,
+    pub pos: usize,
+}
 impl Len for BitSet {
     fn len(&self) -> usize {
         self.count
@@ -63,10 +67,6 @@ impl Clear for BitSet {
         self.words.iter_mut().for_each(|x| *x = 0);
         self.count = 0;
     }
-}
-struct BitOpArgs {
-    pub word: usize,
-    pub pos: usize,
 }
 
 #[must_use]
