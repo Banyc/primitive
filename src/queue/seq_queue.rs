@@ -170,25 +170,29 @@ where
     }
     fn force_insert(&mut self, key: K, value: V, mut waste: impl FnMut((K, V))) {
         if let Some(SeqQueueKeys { win, sparse }) = &mut self.keys {
-            match &self.next {
-                Some(next) => {
-                    let Some(index) = key_index(next, &key) else {
-                        waste((key, value));
-                        return;
-                    };
-                    if win.get(index) {
-                        waste((key, value));
-                        return;
+            let mut is_duped = || {
+                match &self.next {
+                    Some(next) => {
+                        let Some(index) = key_index(next, &key) else {
+                            return true;
+                        };
+                        if win.get(index) {
+                            return true;
+                        }
+                        win.set(index, true);
                     }
-                    win.set(index, true);
-                }
-                None => {
-                    if sparse.contains(&key) {
-                        waste((key, value));
-                        return;
+                    None => {
+                        if sparse.contains(&key) {
+                            return true;
+                        }
+                        sparse.insert(key.clone());
                     }
-                    sparse.insert(key.clone());
                 }
+                false
+            };
+            if is_duped() {
+                waste((key, value));
+                return;
             }
         }
         self.queue.insert(key, value);
