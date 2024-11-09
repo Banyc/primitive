@@ -58,7 +58,7 @@ where
 {
     pub fn set_next(&mut self, next: K, mut stale: impl FnMut((K, V))) {
         loop {
-            let Some((head, _)) = self.queue.peak() else {
+            let Some((head, _)) = self.queue.peek() else {
                 break;
             };
             if next <= *head {
@@ -89,7 +89,7 @@ where
     #[must_use]
     pub fn peek(&self) -> Option<(&K, &V)> {
         let next = self.next()?;
-        let (k, v) = self.queue.peak()?;
+        let (k, v) = self.queue.peek()?;
         if k != next {
             return None;
         }
@@ -112,7 +112,7 @@ where
         let Some(next) = self.next.as_ref() else {
             return;
         };
-        while let Some((k, _)) = self.queue.peak() {
+        while let Some((k, _)) = self.queue.peek() {
             if k != next {
                 break;
             }
@@ -342,7 +342,7 @@ where
         }
     }
     #[must_use]
-    pub fn peak(&self) -> Option<(&K, &V)> {
+    pub fn peek(&self) -> Option<(&K, &V)> {
         let key = self.next()?;
         Some((key, self.queue.get(key)?))
     }

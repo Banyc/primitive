@@ -21,7 +21,7 @@ impl<K: Ord, V> OrderedQueue<K, V> {
             Location::Linear => self.linear.pop_front().unwrap().into_flatten(),
         })
     }
-    pub fn peak(&self) -> Option<(&K, &V)> {
+    pub fn peek(&self) -> Option<(&K, &V)> {
         Some(match self.min_head_location()? {
             Location::MinHeap => self.min_heap.peek().unwrap().0.flatten(),
             Location::Linear => self.linear.front().unwrap().flatten(),
@@ -121,13 +121,13 @@ mod tests {
         let mut q = OrderedQueue::new();
         assert!(q.pop().is_none());
         q.insert(3, 3);
-        assert_eq!(q.peak().unwrap(), (&3, &3));
+        assert_eq!(q.peek().unwrap(), (&3, &3));
         assert_eq!(q.len(), 1);
         q.insert(2, 2);
-        assert_eq!(q.peak().unwrap(), (&2, &2));
+        assert_eq!(q.peek().unwrap(), (&2, &2));
         assert_eq!(q.len(), 2);
         q.insert(3, 3);
-        assert_eq!(q.peak().unwrap(), (&2, &2));
+        assert_eq!(q.peek().unwrap(), (&2, &2));
         assert_eq!(q.len(), 3);
         assert_eq!(q.pop().unwrap(), (2, 2));
         assert_eq!(q.pop().unwrap(), (3, 3));
