@@ -1,17 +1,132 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 
-use crate::ops::{
-    len::{Capacity, Len, LenExt},
-    list::ListMut,
-    ring::RingSpace,
+use crate::{
+    ops::{
+        len::{Capacity, Len, LenExt},
+        list::ListMut,
+        ring::RingSpace,
+    },
+    set::bit_set::BitSet,
+    Clear,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub struct FixedQueuePointer {
+    prev_head: usize,
+    next_tail: usize,
+}
+impl FixedQueuePointer {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            prev_head: 0,
+            next_tail: 1,
+        }
+    }
+    #[must_use]
+    pub fn head(&self, cap: usize) -> usize {
+        self.prev_head.ring_add(1, cap)
+    }
+    #[must_use]
+    pub fn len(&self, cap: usize) -> usize {
+        let dist = self.next_tail.ring_sub(self.prev_head, cap);
+        dist.checked_sub(1).unwrap_or(cap)
+    }
+    #[must_use]
+    pub fn enqueue(&mut self, cap: usize) -> usize {
+        if self.prev_head == self.next_tail {
+            panic!("out of buffer space");
+        }
+        let index = self.next_tail;
+        self.next_tail = self.next_tail.ring_add(1, cap);
+        index
+    }
+    #[must_use]
+    pub fn dequeue(&mut self, cap: usize) -> Option<usize> {
+        let is_empty = self.len(cap) == 0;
+        if is_empty {
+            return None;
+        }
+        let index = self.head(cap);
+        self.prev_head = index;
+        Some(index)
+    }
+}
+impl Default for FixedQueuePointer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BitQueue {
+    pointer: FixedQueuePointer,
+    set: BitSet,
+}
+impl BitQueue {
+    #[must_use]
+    pub fn new(len: usize) -> Self {
+        let set_len = len + 1;
+        Self {
+            pointer: FixedQueuePointer::new(),
+            set: BitSet::new(set_len),
+        }
+    }
+    pub fn enqueue(&mut self, value: bool) {
+        let index = self.pointer.enqueue(self.capacity());
+        match value {
+            true => self.set.set(index),
+            false => self.set.clear_bit(index),
+        }
+    }
+    pub fn dequeue(&mut self) -> Option<bool> {
+        let index = self.pointer.dequeue(self.capacity())?;
+        Some(self.set.get(index))
+    }
+    fn set_index(&self, index: usize) -> usize {
+        let head = self.pointer.head(self.capacity());
+        head.ring_add(index, self.capacity())
+    }
+    pub fn get(&self, index: usize) -> bool {
+        self.set.get(self.set_index(index))
+    }
+    pub fn set(&mut self, index: usize, value: bool) {
+        let index = self.set_index(index);
+        match value {
+            true => self.set.set(index),
+            false => self.set.clear_bit(index),
+        }
+    }
+    pub fn iter(&self) -> impl Iterator<Item = bool> + '_ {
+        let head = self.pointer.head(self.capacity());
+        (0..self.len()).map(move |i| {
+            let i = head.ring_add(i, self.capacity());
+            self.set.get(i)
+        })
+    }
+}
+impl Capacity for BitQueue {
+    fn capacity(&self) -> usize {
+        self.set.capacity().checked_sub(1).unwrap()
+    }
+}
+impl Len for BitQueue {
+    fn len(&self) -> usize {
+        self.pointer.len(self.capacity())
+    }
+}
+impl Clear for BitQueue {
+    fn clear(&mut self) {
+        self.pointer = FixedQueuePointer::new();
+        self.set.clear();
+    }
+}
 
 #[derive(Debug)]
 pub struct FixedQueue<L: ListMut<MaybeUninit<T>>, T> {
     buf: L,
     item: PhantomData<T>,
-    prev_head: usize,
-    next_tail: usize,
+    pointer: FixedQueuePointer,
 }
 impl<L, T> FixedQueue<L, T>
 where
@@ -22,38 +137,27 @@ where
         assert!(!buf.is_empty());
         Self {
             buf,
-            prev_head: 0,
-            next_tail: 1,
+            pointer: FixedQueuePointer::new(),
             item: PhantomData,
         }
     }
     pub fn enqueue(&mut self, item: T) {
-        if self.prev_head == self.next_tail {
-            panic!("out of buffer space");
-        }
-        self.buf[self.next_tail] = MaybeUninit::new(item);
-        self.next_tail = self.next_tail.ring_add(1, self.capacity());
+        let index = self.pointer.enqueue(self.capacity());
+        self.buf[index] = MaybeUninit::new(item);
     }
     pub fn dequeue(&mut self) -> Option<T> {
-        if self.is_empty() {
-            return None;
-        }
-        let head = self.head();
-        self.prev_head = head;
-        let value = &mut self.buf[head];
+        let index = self.pointer.dequeue(self.capacity())?;
+        let value = &mut self.buf[index];
         let value = core::mem::replace(value, MaybeUninit::uninit());
         Some(unsafe { value.assume_init() })
     }
     pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
-        let head = self.head();
+        let head = self.pointer.head(self.capacity());
         (0..self.len()).map(move |i| {
             let i = head.ring_add(i, self.capacity());
             let value = &self.buf[i];
             unsafe { value.assume_init_ref() }
         })
-    }
-    fn head(&self) -> usize {
-        self.prev_head.ring_add(1, self.capacity())
     }
 }
 impl<L, T> Capacity for FixedQueue<L, T>
@@ -69,9 +173,7 @@ where
     L: ListMut<MaybeUninit<T>>,
 {
     fn len(&self) -> usize {
-        let capacity = self.capacity();
-        let dist = self.next_tail.ring_sub(self.prev_head, capacity);
-        dist.checked_sub(1).unwrap_or(capacity)
+        self.pointer.len(self.capacity())
     }
 }
 impl<L, T> Clone for FixedQueue<L, T>
@@ -120,5 +222,20 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.dequeue().unwrap(), 3);
         assert!(q.is_empty());
+    }
+    #[test]
+    fn test_bit_queue() {
+        let mut q = BitQueue::new(2);
+        assert!(q.is_empty());
+        q.enqueue(false);
+        assert_eq!(q.len(), 1);
+        q.enqueue(true);
+        assert_eq!(q.len(), 2);
+        assert!(!q.dequeue().unwrap());
+        q.enqueue(true);
+        assert_eq!(q.len(), 2);
+        assert!(q.dequeue().unwrap());
+        assert!(q.dequeue().unwrap());
+        assert!(q.dequeue().is_none());
     }
 }
