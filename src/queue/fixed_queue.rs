@@ -1,6 +1,9 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 
-use crate::{ops::ring::RingSpace, seq::SeqMut, Capacity, Len, LenExt};
+use crate::{
+    ops::{ring::RingSpace, seq::SeqMut},
+    Capacity, Len, LenExt,
+};
 
 #[derive(Debug)]
 pub struct FixedQueue<S: SeqMut<MaybeUninit<T>>, T> {

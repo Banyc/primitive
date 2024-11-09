@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 
 use crate::{
-    seq::{Seq, SeqMut},
+    ops::seq::{Seq, SeqMut},
     Capacity, Full, Len, LenExt,
 };
 

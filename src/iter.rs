@@ -1,6 +1,6 @@
 use core::mem::MaybeUninit;
 
-use crate::seq::{dyn_array_init, dyn_vec_init};
+use crate::ops::seq::{dyn_array_init, dyn_vec_init};
 
 /// # Example
 ///
