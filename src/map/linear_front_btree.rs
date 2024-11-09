@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     arena::stack::{Stack, StaticRevStack},
-    ops::seq::{LinearSearch, Seq, SeqMut},
+    ops::slice::{AsSlice, AsSliceMut, LinearSearch},
     Full, Len, LenExt,
 };
 

@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 
 use crate::{
-    ops::seq::{Seq, SeqMut},
+    ops::slice::{AsSlice, AsSliceMut},
     Capacity, Full, Len, LenExt,
 };
 
@@ -43,12 +43,12 @@ impl<T> Capacity for DynCappedStack<T> {
         self.buf.capacity()
     }
 }
-impl<T> Seq<T> for DynCappedStack<T> {
+impl<T> AsSlice<T> for DynCappedStack<T> {
     fn as_slice(&self) -> &[T] {
         &self.buf
     }
 }
-impl<T> SeqMut<T> for DynCappedStack<T> {
+impl<T> AsSliceMut<T> for DynCappedStack<T> {
     fn as_slice_mut(&mut self) -> &mut [T] {
         &mut self.buf
     }
@@ -84,7 +84,7 @@ impl<T> Stack<T> for DynStack<T> {
         }
     }
 }
-impl<T> Seq<T> for DynStack<T> {
+impl<T> AsSlice<T> for DynStack<T> {
     fn as_slice(&self) -> &[T] {
         match self {
             DynStack::Capped(dyn_capped_stack) => dyn_capped_stack.as_slice(),
@@ -92,7 +92,7 @@ impl<T> Seq<T> for DynStack<T> {
         }
     }
 }
-impl<T> SeqMut<T> for DynStack<T> {
+impl<T> AsSliceMut<T> for DynStack<T> {
     fn as_slice_mut(&mut self) -> &mut [T] {
         match self {
             DynStack::Capped(dyn_capped_stack) => dyn_capped_stack.as_slice_mut(),
@@ -208,12 +208,12 @@ impl<T, const N: usize> Capacity for StaticStack<T, N> {
         N
     }
 }
-impl<T, const N: usize> Seq<T> for StaticStack<T, N> {
+impl<T, const N: usize> AsSlice<T> for StaticStack<T, N> {
     fn as_slice(&self) -> &[T] {
         unsafe { core::mem::transmute(&self.array[..self.len]) }
     }
 }
-impl<T, const N: usize> SeqMut<T> for StaticStack<T, N> {
+impl<T, const N: usize> AsSliceMut<T> for StaticStack<T, N> {
     fn as_slice_mut(&mut self) -> &mut [T] {
         unsafe { core::mem::transmute(&mut self.array[..self.len]) }
     }
@@ -344,12 +344,12 @@ impl<T, const N: usize> Capacity for StaticRevStack<T, N> {
         N
     }
 }
-impl<T, const N: usize> Seq<T> for StaticRevStack<T, N> {
+impl<T, const N: usize> AsSlice<T> for StaticRevStack<T, N> {
     fn as_slice(&self) -> &[T] {
         unsafe { core::mem::transmute(&self.array[self.start()..]) }
     }
 }
-impl<T, const N: usize> SeqMut<T> for StaticRevStack<T, N> {
+impl<T, const N: usize> AsSliceMut<T> for StaticRevStack<T, N> {
     fn as_slice_mut(&mut self) -> &mut [T] {
         let start = self.start();
         unsafe { core::mem::transmute(&mut self.array[start..]) }

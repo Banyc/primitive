@@ -4,6 +4,6 @@ pub mod float;
 pub mod opt_cmp;
 pub mod range;
 pub mod ring;
-pub mod seq;
+pub mod slice;
 pub mod unit;
 pub mod wrap;

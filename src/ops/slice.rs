@@ -9,54 +9,54 @@ pub fn dyn_array_init<T, const N: usize>(new_value: impl Fn() -> T) -> [T; N] {
     array
 }
 
-pub trait Seq<T> {
+pub trait AsSlice<T> {
     #[must_use]
     fn as_slice(&self) -> &[T];
 }
-pub trait SeqMut<T>: Seq<T> {
+pub trait AsSliceMut<T>: AsSlice<T> {
     #[must_use]
     fn as_slice_mut(&mut self) -> &mut [T];
 }
 
-impl<T> Seq<T> for Vec<T> {
+impl<T> AsSlice<T> for Vec<T> {
     fn as_slice(&self) -> &[T] {
         self
     }
 }
-impl<T> SeqMut<T> for Vec<T> {
+impl<T> AsSliceMut<T> for Vec<T> {
     fn as_slice_mut(&mut self) -> &mut [T] {
         self
     }
 }
 
-impl<T, const N: usize> Seq<T> for [T; N] {
+impl<T, const N: usize> AsSlice<T> for [T; N] {
     fn as_slice(&self) -> &[T] {
         self
     }
 }
-impl<T, const N: usize> SeqMut<T> for [T; N] {
+impl<T, const N: usize> AsSliceMut<T> for [T; N] {
     fn as_slice_mut(&mut self) -> &mut [T] {
         self
     }
 }
 
-impl<T> Seq<T> for &[T] {
+impl<T> AsSlice<T> for &[T] {
     fn as_slice(&self) -> &[T] {
         self
     }
 }
-impl<T> Seq<T> for &mut [T] {
+impl<T> AsSlice<T> for &mut [T] {
     fn as_slice(&self) -> &[T] {
         self
     }
 }
-impl<T> SeqMut<T> for &mut [T] {
+impl<T> AsSliceMut<T> for &mut [T] {
     fn as_slice_mut(&mut self) -> &mut [T] {
         self
     }
 }
 
-pub trait LinearSearch<T>: Seq<T> {
+pub trait LinearSearch<T>: AsSlice<T> {
     /// If the slice is not sorted or if the comparator function does not
     /// implement an order consistent with the sort order of the underlying
     /// slice, the returned result is unspecified and meaningless.
@@ -88,16 +88,16 @@ pub trait LinearSearch<T>: Seq<T> {
         Err(self.as_slice().len())
     }
 }
-impl<S, T> LinearSearch<T> for S where S: Seq<T> {}
+impl<S, T> LinearSearch<T> for S where S: AsSlice<T> {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_seq() {
+    fn test_slice() {
         let mut v = vec![1, 2];
-        assert_eq!(Seq::as_slice(&v)[0], 1);
-        assert_eq!(SeqMut::as_slice_mut(&mut v)[0], 1);
+        assert_eq!(AsSlice::as_slice(&v)[0], 1);
+        assert_eq!(AsSliceMut::as_slice_mut(&mut v)[0], 1);
     }
 }

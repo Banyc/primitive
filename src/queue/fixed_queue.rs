@@ -1,12 +1,12 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::{
-    ops::{ring::RingSpace, seq::SeqMut},
+    ops::{ring::RingSpace, slice::AsSliceMut},
     Capacity, Len, LenExt,
 };
 
 #[derive(Debug)]
-pub struct FixedQueue<S: SeqMut<MaybeUninit<T>>, T> {
+pub struct FixedQueue<S: AsSliceMut<MaybeUninit<T>>, T> {
     buf: S,
     item: PhantomData<T>,
     prev_head: usize,
@@ -14,7 +14,7 @@ pub struct FixedQueue<S: SeqMut<MaybeUninit<T>>, T> {
 }
 impl<S, T> FixedQueue<S, T>
 where
-    S: SeqMut<MaybeUninit<T>>,
+    S: AsSliceMut<MaybeUninit<T>>,
 {
     #[must_use]
     pub fn new(buf: S) -> Self {
@@ -57,7 +57,7 @@ where
 }
 impl<S, T> Capacity for FixedQueue<S, T>
 where
-    S: SeqMut<MaybeUninit<T>>,
+    S: AsSliceMut<MaybeUninit<T>>,
 {
     fn capacity(&self) -> usize {
         self.buf.as_slice().len().checked_sub(1).unwrap()
@@ -65,7 +65,7 @@ where
 }
 impl<S, T> Len for FixedQueue<S, T>
 where
-    S: SeqMut<MaybeUninit<T>>,
+    S: AsSliceMut<MaybeUninit<T>>,
 {
     fn len(&self) -> usize {
         let capacity = self.capacity();
@@ -75,7 +75,7 @@ where
 }
 impl<S, T> Clone for FixedQueue<S, T>
 where
-    S: SeqMut<MaybeUninit<T>> + Clone,
+    S: AsSliceMut<MaybeUninit<T>> + Clone,
     T: Clone,
 {
     fn clone(&self) -> Self {
@@ -89,7 +89,7 @@ where
 }
 impl<S, T> Drop for FixedQueue<S, T>
 where
-    S: SeqMut<MaybeUninit<T>>,
+    S: AsSliceMut<MaybeUninit<T>>,
 {
     fn drop(&mut self) {
         while let Some(item) = self.dequeue() {
