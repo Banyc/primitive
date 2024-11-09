@@ -1,7 +1,7 @@
 use core::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
 
-use crate::{ops::opt_cmp::MinNoneOptCmp, Clear, Len};
+use crate::{map::MapInsert, ops::opt_cmp::MinNoneOptCmp, Clear, Len};
 
 #[derive(Debug, Clone)]
 pub struct OrderedQueue<K, V> {
@@ -14,15 +14,6 @@ impl<K: Ord, V> OrderedQueue<K, V> {
             min_heap: BinaryHeap::new(),
             linear: VecDeque::new(),
         }
-    }
-    pub fn insert(&mut self, key: K, value: V) {
-        let entry = Entry { key, value };
-        let linear_back = self.linear.back().map(|entry| &entry.key);
-        if MinNoneOptCmp(linear_back) <= MinNoneOptCmp(Some(&entry.key)) {
-            self.linear.push_back(entry);
-            return;
-        }
-        self.min_heap.push(Reverse(entry));
     }
     pub fn pop(&mut self) -> Option<(K, V)> {
         Some(match self.min_head_location()? {
@@ -53,6 +44,18 @@ impl<K: Ord, V> OrderedQueue<K, V> {
             core::cmp::Ordering::Less => Some(Location::MinHeap),
             core::cmp::Ordering::Equal | core::cmp::Ordering::Greater => Some(Location::Linear),
         }
+    }
+}
+impl<K: Ord, V> MapInsert<K, V> for OrderedQueue<K, V> {
+    type Out = ();
+    fn insert(&mut self, key: K, value: V) {
+        let entry = Entry { key, value };
+        let linear_back = self.linear.back().map(|entry| &entry.key);
+        if MinNoneOptCmp(linear_back) <= MinNoneOptCmp(Some(&entry.key)) {
+            self.linear.push_back(entry);
+            return;
+        }
+        self.min_heap.push(Reverse(entry));
     }
 }
 impl<K: Ord, V> Default for OrderedQueue<K, V> {
