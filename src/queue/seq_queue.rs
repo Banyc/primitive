@@ -102,13 +102,12 @@ where
         if let Some(SeqQueueKeys { win, sparse: _ }) = &mut self.keys {
             win.dequeue().unwrap();
             win.enqueue(false);
-        } else {
-            self.remove_head(waste);
         }
+        self.remove_dupe_queue_head(waste);
         self.next = self.next().unwrap().checked_add(&K::one());
         Some((k, v))
     }
-    fn remove_head(&mut self, mut waste: impl FnMut((K, V))) {
+    fn remove_dupe_queue_head(&mut self, mut waste: impl FnMut((K, V))) {
         let Some(next) = self.next.as_ref() else {
             return;
         };
