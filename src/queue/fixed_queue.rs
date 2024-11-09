@@ -2,24 +2,24 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::ops::{
     len::{Capacity, Len, LenExt},
+    list::ListMut,
     ring::RingSpace,
-    slice::AsSliceMut,
 };
 
 #[derive(Debug)]
-pub struct FixedQueue<S: AsSliceMut<MaybeUninit<T>>, T> {
-    buf: S,
+pub struct FixedQueue<L: ListMut<MaybeUninit<T>>, T> {
+    buf: L,
     item: PhantomData<T>,
     prev_head: usize,
     next_tail: usize,
 }
-impl<S, T> FixedQueue<S, T>
+impl<L, T> FixedQueue<L, T>
 where
-    S: AsSliceMut<MaybeUninit<T>>,
+    L: ListMut<MaybeUninit<T>>,
 {
     #[must_use]
-    pub fn new(buf: S) -> Self {
-        assert!(!buf.as_slice().is_empty());
+    pub fn new(buf: L) -> Self {
+        assert!(!buf.is_empty());
         Self {
             buf,
             prev_head: 0,
@@ -31,7 +31,7 @@ where
         if self.prev_head == self.next_tail {
             panic!("out of buffer space");
         }
-        self.buf.as_slice_mut()[self.next_tail] = MaybeUninit::new(item);
+        self.buf[self.next_tail] = MaybeUninit::new(item);
         self.next_tail = self.next_tail.ring_add(1, self.capacity());
     }
     pub fn dequeue(&mut self) -> Option<T> {
@@ -40,7 +40,7 @@ where
         }
         let head = self.head();
         self.prev_head = head;
-        let value = &mut self.buf.as_slice_mut()[head];
+        let value = &mut self.buf[head];
         let value = core::mem::replace(value, MaybeUninit::uninit());
         Some(unsafe { value.assume_init() })
     }
@@ -48,7 +48,7 @@ where
         let head = self.head();
         (0..self.len()).map(move |i| {
             let i = head.ring_add(i, self.capacity());
-            let value = &self.buf.as_slice()[i];
+            let value = &self.buf[i];
             unsafe { value.assume_init_ref() }
         })
     }
@@ -56,17 +56,17 @@ where
         self.prev_head.ring_add(1, self.capacity())
     }
 }
-impl<S, T> Capacity for FixedQueue<S, T>
+impl<L, T> Capacity for FixedQueue<L, T>
 where
-    S: AsSliceMut<MaybeUninit<T>>,
+    L: ListMut<MaybeUninit<T>>,
 {
     fn capacity(&self) -> usize {
-        self.buf.as_slice().len().checked_sub(1).unwrap()
+        self.buf.len().checked_sub(1).unwrap()
     }
 }
-impl<S, T> Len for FixedQueue<S, T>
+impl<L, T> Len for FixedQueue<L, T>
 where
-    S: AsSliceMut<MaybeUninit<T>>,
+    L: ListMut<MaybeUninit<T>>,
 {
     fn len(&self) -> usize {
         let capacity = self.capacity();
@@ -74,9 +74,9 @@ where
         dist.checked_sub(1).unwrap_or(capacity)
     }
 }
-impl<S, T> Clone for FixedQueue<S, T>
+impl<L, T> Clone for FixedQueue<L, T>
 where
-    S: AsSliceMut<MaybeUninit<T>> + Clone,
+    L: ListMut<MaybeUninit<T>> + Clone,
     T: Clone,
 {
     fn clone(&self) -> Self {
@@ -88,9 +88,9 @@ where
         new
     }
 }
-impl<S, T> Drop for FixedQueue<S, T>
+impl<L, T> Drop for FixedQueue<L, T>
 where
-    S: AsSliceMut<MaybeUninit<T>>,
+    L: ListMut<MaybeUninit<T>>,
 {
     fn drop(&mut self) {
         while let Some(item) = self.dequeue() {

@@ -70,3 +70,8 @@ impl<T> Len for [T] {
         self.len()
     }
 }
+impl<T, const N: usize> Len for [T; N] {
+    fn len(&self) -> usize {
+        N
+    }
+}

@@ -1,4 +1,7 @@
-use core::mem::MaybeUninit;
+use core::{
+    mem::MaybeUninit,
+    ops::{Index, IndexMut},
+};
 
 use crate::ops::{
     len::{Capacity, Full, Len, LenExt},
@@ -53,6 +56,17 @@ impl<T> AsSliceMut<T> for DynCappedStack<T> {
         &mut self.buf
     }
 }
+impl<T> Index<usize> for DynCappedStack<T> {
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_slice()[index]
+    }
+}
+impl<T> IndexMut<usize> for DynCappedStack<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_slice_mut()[index]
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum DynStack<T> {
@@ -98,6 +112,17 @@ impl<T> AsSliceMut<T> for DynStack<T> {
             DynStack::Capped(dyn_capped_stack) => dyn_capped_stack.as_slice_mut(),
             DynStack::Vec(vec) => vec,
         }
+    }
+}
+impl<T> Index<usize> for DynStack<T> {
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_slice()[index]
+    }
+}
+impl<T> IndexMut<usize> for DynStack<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_slice_mut()[index]
     }
 }
 
@@ -216,6 +241,17 @@ impl<T, const N: usize> AsSlice<T> for StaticStack<T, N> {
 impl<T, const N: usize> AsSliceMut<T> for StaticStack<T, N> {
     fn as_slice_mut(&mut self) -> &mut [T] {
         unsafe { core::mem::transmute(&mut self.array[..self.len]) }
+    }
+}
+impl<T, const N: usize> Index<usize> for StaticStack<T, N> {
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_slice()[index]
+    }
+}
+impl<T, const N: usize> IndexMut<usize> for StaticStack<T, N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_slice_mut()[index]
     }
 }
 impl<T, const N: usize> Default for StaticStack<T, N> {
@@ -353,6 +389,17 @@ impl<T, const N: usize> AsSliceMut<T> for StaticRevStack<T, N> {
     fn as_slice_mut(&mut self) -> &mut [T] {
         let start = self.start();
         unsafe { core::mem::transmute(&mut self.array[start..]) }
+    }
+}
+impl<T, const N: usize> Index<usize> for StaticRevStack<T, N> {
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_slice()[index]
+    }
+}
+impl<T, const N: usize> IndexMut<usize> for StaticRevStack<T, N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_slice_mut()[index]
     }
 }
 impl<T, const N: usize> Default for StaticRevStack<T, N> {
