@@ -3,7 +3,10 @@ use std::{collections::VecDeque, time::Instant};
 
 use thiserror::Error;
 
-use crate::{Capacity, Clear, Full, Len};
+use crate::{
+    ops::len::{Capacity, Full, Len},
+    Clear,
+};
 
 /// The lower the priority number, the higher the priority
 #[derive(Debug, Clone)]

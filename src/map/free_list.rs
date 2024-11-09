@@ -1,4 +1,4 @@
-use crate::{Clear, Len};
+use crate::{ops::len::Len, Clear};
 
 #[derive(Debug, Clone)]
 pub struct DenseFreeList<T> {
@@ -190,7 +190,7 @@ pub trait FreeList<T>: Len + Clear {
 
 #[cfg(test)]
 mod tests {
-    use crate::LenExt;
+    use crate::ops::len::LenExt;
 
     use super::*;
 

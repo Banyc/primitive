@@ -1,4 +1,8 @@
-use crate::{non_max::OptionNonMax, Capacity, Clear, Len};
+use crate::{
+    non_max::OptionNonMax,
+    ops::len::{Capacity, Len},
+    Clear,
+};
 
 #[derive(Debug, Clone)]
 pub struct SparseSet {
@@ -115,7 +119,7 @@ impl Clear for SparseSet {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::LenExt;
+    use crate::ops::len::LenExt;
 
     use super::*;
 

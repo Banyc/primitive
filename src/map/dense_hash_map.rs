@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Clear, Len};
+use crate::{ops::len::Len, Clear};
 
 use super::{
     free_list::{DenseFreeList, FreeList},
@@ -129,7 +129,7 @@ impl<K, V> Clear for DenseHashMap<K, V> {
 
 #[cfg(test)]
 mod tests {
-    use crate::LenExt;
+    use crate::ops::len::LenExt;
 
     use super::*;
 

@@ -1,7 +1,7 @@
 use core::{borrow::Borrow, ptr::NonNull};
 use std::collections::HashMap;
 
-use crate::{arena::stable_vec::StableVec, Clear, Len};
+use crate::{arena::stable_vec::StableVec, ops::len::Len, Clear};
 
 use super::{
     hash_map::{HashGet, HashGetMut},

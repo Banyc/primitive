@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use num_traits::{CheckedAdd, One};
 
-use crate::{map::MapInsert, queue::ordered_queue::OrderedQueue, Clear, Len};
+use crate::{map::MapInsert, ops::len::Len, queue::ordered_queue::OrderedQueue, Clear};
 
 #[derive(Debug, Clone)]
 pub struct SeqQueue<K, V> {

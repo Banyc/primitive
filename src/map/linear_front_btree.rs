@@ -3,8 +3,10 @@ use std::collections::BTreeMap;
 
 use crate::{
     arena::stack::{Stack, StaticRevStack},
-    ops::slice::{AsSlice, AsSliceMut, LinearSearch},
-    Full, Len, LenExt,
+    ops::{
+        len::{Full, Len, LenExt},
+        slice::{AsSlice, AsSliceMut, LinearSearch},
+    },
 };
 
 use super::MapInsert;

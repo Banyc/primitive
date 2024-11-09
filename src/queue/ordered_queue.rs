@@ -1,7 +1,7 @@
 use core::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
 
-use crate::{map::MapInsert, ops::opt_cmp::MinNoneOptCmp, Clear, Len};
+use crate::{map::MapInsert, ops::len::Len, ops::opt_cmp::MinNoneOptCmp, Clear};
 
 #[derive(Debug, Clone)]
 pub struct OrderedQueue<K, V> {
@@ -112,7 +112,7 @@ impl<K: Ord, V> Ord for Entry<K, V> {
 
 #[cfg(test)]
 mod tests {
-    use crate::LenExt;
+    use crate::ops::len::LenExt;
 
     use super::*;
 

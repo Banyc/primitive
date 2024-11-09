@@ -1,8 +1,9 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 
-use crate::{
-    ops::{ring::RingSpace, slice::AsSliceMut},
-    Capacity, Len, LenExt,
+use crate::ops::{
+    len::{Capacity, Len, LenExt},
+    ring::RingSpace,
+    slice::AsSliceMut,
 };
 
 #[derive(Debug)]

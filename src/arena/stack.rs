@@ -1,8 +1,8 @@
 use core::mem::MaybeUninit;
 
-use crate::{
-    ops::slice::{AsSlice, AsSliceMut},
-    Capacity, Full, Len, LenExt,
+use crate::ops::{
+    len::{Capacity, Full, Len, LenExt},
+    slice::{AsSlice, AsSliceMut},
 };
 
 pub trait Stack<T> {

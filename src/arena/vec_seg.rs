@@ -1,4 +1,4 @@
-use crate::Len;
+use crate::ops::len::Len;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SegKey {

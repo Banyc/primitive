@@ -1,4 +1,4 @@
-use crate::{Clear, Len};
+use crate::{ops::len::Len, Clear};
 
 const BITS_PER_BYTE: usize = 8;
 const USIZE_BITS: usize = core::mem::size_of::<usize>() * BITS_PER_BYTE;
@@ -80,7 +80,7 @@ fn bit_offset(bit_index: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::LenExt;
+    use crate::ops::len::LenExt;
 
     use super::*;
 

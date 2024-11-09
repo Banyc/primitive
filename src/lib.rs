@@ -18,31 +18,6 @@ pub mod stacked_state;
 pub mod sync;
 pub mod time;
 
-pub trait Capacity: Len {
-    #[must_use]
-    fn capacity(&self) -> usize;
-}
-
-#[allow(clippy::len_without_is_empty)]
-pub trait Len {
-    #[must_use]
-    fn len(&self) -> usize;
-}
-pub trait LenExt: Len {
-    #[must_use]
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
-impl<T: Len> LenExt for T {}
-
-pub trait Full: Capacity {
-    fn is_full(&self) -> bool {
-        self.capacity() == self.len()
-    }
-}
-impl<T: Capacity> Full for T {}
-
 pub trait Clear {
     fn clear(&mut self);
 }
