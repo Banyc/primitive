@@ -1,4 +1,4 @@
-use core::{hash::Hash, ops::ControlFlow};
+use core::{hash::Hash, num::NonZeroUsize, ops::ControlFlow};
 use std::collections::{BTreeMap, HashSet};
 
 use num_traits::{CheckedAdd, CheckedSub, NumCast, One};
@@ -30,8 +30,8 @@ where
     K: Ord,
 {
     #[must_use]
-    pub fn new(window_size_at_least: usize) -> Self {
-        let mut win = BitQueue::new(window_size_at_least);
+    pub fn new(window_size_at_least: NonZeroUsize) -> Self {
+        let mut win = BitQueue::new(window_size_at_least.get());
         reset_bit_win(&mut win);
         Self {
             queue: OrderedQueue::new(),
@@ -447,7 +447,10 @@ mod tests {
 
     #[test]
     fn test_seq_queue() {
-        let q = [SeqQueue::new(1 << 10), SeqQueue::new_unstable()];
+        let q = [
+            SeqQueue::new(NonZeroUsize::new(1 << 10).unwrap()),
+            SeqQueue::new_unstable(),
+        ];
         for mut q in q {
             assert!(q.insert_pop(1, 1, |_| {}).into_in_order().is_none());
             assert!(q.insert_pop(2, 2, |_| {}).into_in_order().is_none());
@@ -564,7 +567,7 @@ mod benches {
     }
     #[bench]
     fn bench_seq_queue(bencher: &mut Bencher) {
-        let mut q = SeqQueue::new(1 << 10);
+        let mut q = SeqQueue::new(NonZeroUsize::new(1 << 10).unwrap());
         insert_pop!(bencher, q);
     }
     #[bench]
