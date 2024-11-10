@@ -3,7 +3,7 @@ use crate::{ops::len::Len, Clear};
 const BITS_PER_BYTE: usize = 8;
 const USIZE_BITS: usize = core::mem::size_of::<usize>() * BITS_PER_BYTE;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct BitSet {
     words: Vec<usize>,
     count: usize,
