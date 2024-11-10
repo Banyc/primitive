@@ -44,6 +44,7 @@ macro_rules! impl_common_real_number_traits {
 
 /// float in \[0, 1\]
 #[derive(Clone, Copy, PartialEq, Hash)]
+#[repr(transparent)]
 pub struct UnitF<F> {
     v: F,
 }
@@ -68,6 +69,7 @@ impl_common_real_number_traits!(UnitF, v);
 
 /// float in \[0, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
+#[repr(transparent)]
 pub struct NonNegF<F> {
     v: F,
 }
@@ -92,6 +94,7 @@ impl_common_real_number_traits!(NonNegF, v);
 
 /// float in (0, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
+#[repr(transparent)]
 pub struct PosF<F> {
     v: F,
 }
