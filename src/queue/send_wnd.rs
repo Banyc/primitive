@@ -33,6 +33,22 @@ impl<K, V> SendWnd<K, V> {
         self.next.as_ref()
     }
 }
+impl<K, U> SendWnd<K, Option<U>>
+where
+    K: CheckedSub + CheckedAdd + One + NumCast + Clone + Eq,
+{
+    pub fn pop_none(&mut self) {
+        loop {
+            let Some((_, v)) = self.iter().nth(0) else {
+                break;
+            };
+            if v.is_some() {
+                break;
+            }
+            self.pop().unwrap();
+        }
+    }
+}
 impl<K, V> SendWnd<K, V>
 where
     K: CheckedAdd + One + Clone + Eq,
@@ -96,6 +112,8 @@ impl<K, V> Len for SendWnd<K, V> {
 
 #[cfg(test)]
 mod tests {
+    use crate::ops::len::LenExt;
+
     use super::*;
 
     #[test]
@@ -111,5 +129,34 @@ mod tests {
         assert_eq!(*w.get(&1).unwrap(), 1);
         assert_eq!(w.pop().unwrap(), 1);
         assert!(w.pop().is_none());
+    }
+
+    #[test]
+    fn test_send_wnd_pop_none() {
+        let mut w: SendWnd<usize, Option<usize>> = SendWnd::new(0);
+        w.push(Some(0));
+        w.push(Some(1));
+        w.push(Some(2));
+        *w.get_mut(&1).unwrap() = None;
+        *w.get_mut(&2).unwrap() = None;
+        assert_eq!(w.len(), 3);
+        w.pop_none();
+        assert_eq!(w.len(), 3);
+        assert_eq!(w.pop().unwrap(), Some(0));
+        w.pop_none();
+        assert!(w.is_empty());
+
+        let mut w: SendWnd<usize, Option<usize>> = SendWnd::new(0);
+        w.push(Some(0));
+        w.push(Some(1));
+        w.push(Some(2));
+        *w.get_mut(&1).unwrap() = None;
+        assert_eq!(w.len(), 3);
+        w.pop_none();
+        assert_eq!(w.len(), 3);
+        assert_eq!(w.pop().unwrap(), Some(0));
+        w.pop_none();
+        assert_eq!(w.len(), 1);
+        assert_eq!(*w.get(&2).unwrap(), Some(2));
     }
 }
