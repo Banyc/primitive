@@ -5,6 +5,7 @@ pub mod len;
 pub mod list;
 pub mod mut_cell;
 pub mod non_max;
+pub mod opt;
 pub mod opt_cmp;
 pub mod range;
 pub mod ring;

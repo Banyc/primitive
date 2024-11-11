@@ -1,6 +1,8 @@
-use core::fmt::Debug;
+use core::{fmt::Debug, marker::PhantomData};
 
 use num_traits::Float;
+
+use super::opt::Opt;
 
 pub trait FloatExt: Float {
     fn closes_to(self, other: Self) -> bool {
@@ -42,6 +44,58 @@ macro_rules! impl_common_real_number_traits {
     };
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct OptR<F, W> {
+    v: F,
+    _wrapper: PhantomData<W>,
+}
+impl<F: Float, W: WrapNonNan<F>> Opt<W> for OptR<F, W> {
+    type GetOut = W;
+    fn none() -> Self {
+        Self {
+            v: F::nan(),
+            _wrapper: PhantomData,
+        }
+    }
+    fn some(wrapper: W) -> Self {
+        let v = wrapper.get();
+        assert!(!v.is_nan());
+        Self {
+            v,
+            _wrapper: PhantomData,
+        }
+    }
+    fn get(&self) -> Option<W> {
+        if self.v.is_nan() {
+            return None;
+        }
+        Some(W::new(self.v).unwrap())
+    }
+    fn take(&mut self) -> Option<W> {
+        let res = self.get();
+        self.v = F::nan();
+        res
+    }
+}
+impl<F: Float, W: WrapNonNan<F>> From<Option<W>> for OptR<F, W> {
+    fn from(value: Option<W>) -> Self {
+        value.map(|v| Self::some(v)).unwrap_or(Self::none())
+    }
+}
+impl<F: Float, W: WrapNonNan<F>> From<OptR<F, W>> for Option<W> {
+    fn from(value: OptR<F, W>) -> Self {
+        value.map(|v| v)
+    }
+}
+pub trait WrapNonNan<F>
+where
+    Self: Sized,
+{
+    fn new(float: F) -> Option<Self>;
+    fn get(&self) -> F;
+}
+
 /// float in \[0, 1\]
 #[derive(Clone, Copy, PartialEq, Hash)]
 #[repr(transparent)]
@@ -72,6 +126,14 @@ impl<F: Copy> UnitR<F> {
     }
 }
 impl_common_real_number_traits!(UnitR, v);
+impl<F: Float> WrapNonNan<F> for UnitR<F> {
+    fn new(float: F) -> Option<Self> {
+        Self::new(float)
+    }
+    fn get(&self) -> F {
+        self.get()
+    }
+}
 
 /// float in \[0, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
@@ -103,6 +165,14 @@ impl<F: Copy> NonNegR<F> {
     }
 }
 impl_common_real_number_traits!(NonNegR, v);
+impl<F: Float> WrapNonNan<F> for NonNegR<F> {
+    fn new(float: F) -> Option<Self> {
+        Self::new(float)
+    }
+    fn get(&self) -> F {
+        self.get()
+    }
+}
 
 /// float in (0, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
@@ -134,6 +204,14 @@ impl<F: Copy> PosR<F> {
     }
 }
 impl_common_real_number_traits!(PosR, v);
+impl<F: Float> WrapNonNan<F> for PosR<F> {
+    fn new(float: F) -> Option<Self> {
+        Self::new(float)
+    }
+    fn get(&self) -> F {
+        self.get()
+    }
+}
 
 /// float in (-inf, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
@@ -163,6 +241,50 @@ impl<F: Copy> R<F> {
     }
 }
 impl_common_real_number_traits!(R, v);
+impl<F: Float> WrapNonNan<F> for R<F> {
+    fn new(float: F) -> Option<Self> {
+        Self::new(float)
+    }
+    fn get(&self) -> F {
+        self.get()
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Hash)]
+#[repr(transparent)]
+pub struct NonNanF<F> {
+    v: F,
+}
+impl<F: Float> NonNanF<F> {
+    pub fn new(float: F) -> Option<Self> {
+        if float.is_nan() {
+            return None;
+        }
+        Some(Self { v: float })
+    }
+}
+impl<F> NonNanF<F> {
+    /// # Safety
+    ///
+    /// Float must not be NAN
+    pub const unsafe fn new_unchecked(float: F) -> Self {
+        Self { v: float }
+    }
+}
+impl<F: Copy> NonNanF<F> {
+    pub const fn get(&self) -> F {
+        self.v
+    }
+}
+impl_common_real_number_traits!(NonNanF, v);
+impl<F: Float> WrapNonNan<F> for NonNanF<F> {
+    fn new(float: F) -> Option<Self> {
+        Self::new(float)
+    }
+    fn get(&self) -> F {
+        self.get()
+    }
+}
 
 impl<F: Float> From<UnitR<F>> for NonNegR<F> {
     fn from(value: UnitR<F>) -> Self {
@@ -174,12 +296,27 @@ impl<F: Float> From<UnitR<F>> for R<F> {
         unsafe { Self::new_unchecked(value.get()) }
     }
 }
+impl<F: Float> From<UnitR<F>> for NonNanF<F> {
+    fn from(value: UnitR<F>) -> Self {
+        unsafe { Self::new_unchecked(value.get()) }
+    }
+}
 impl<F: Float> From<NonNegR<F>> for R<F> {
     fn from(value: NonNegR<F>) -> Self {
         unsafe { Self::new_unchecked(value.get()) }
     }
 }
+impl<F: Float> From<NonNegR<F>> for NonNanF<F> {
+    fn from(value: NonNegR<F>) -> Self {
+        unsafe { Self::new_unchecked(value.get()) }
+    }
+}
 impl<F: Float> From<PosR<F>> for R<F> {
+    fn from(value: PosR<F>) -> Self {
+        unsafe { Self::new_unchecked(value.get()) }
+    }
+}
+impl<F: Float> From<PosR<F>> for NonNanF<F> {
     fn from(value: PosR<F>) -> Self {
         unsafe { Self::new_unchecked(value.get()) }
     }
@@ -201,5 +338,13 @@ mod tests {
         let mut a = [0., 1., 0.1, 0.1].map(|x| UnitR::new(x).unwrap());
         a.sort_unstable();
         assert_eq!(a.map(|x| x.get()), [0., 0.1, 0.1, 1.]);
+    }
+
+    #[test]
+    fn test_opt() {
+        let mut a = OptR::some(UnitR::new(1.).unwrap());
+        assert_eq!(a.get().unwrap(), UnitR::new(1.).unwrap());
+        assert_eq!(a.take().unwrap(), UnitR::new(1.).unwrap());
+        assert!(a.get().is_none());
     }
 }
