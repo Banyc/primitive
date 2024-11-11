@@ -1,7 +1,8 @@
 use crate::{
     ops::{
         len::{Capacity, Len},
-        non_max::OptionNonMax,
+        non_max::OptNonMax,
+        opt::Opt,
     },
     Clear,
 };
@@ -9,7 +10,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct SparseSet {
     data: Vec<usize>,
-    index: Vec<OptionNonMax<usize>>,
+    index: Vec<OptNonMax<usize>>,
 }
 impl SparseSet {
     /// # Panic
@@ -20,7 +21,7 @@ impl SparseSet {
         if capacity == usize::MAX {
             panic!("capacity cannot be the max number");
         }
-        let index = vec![OptionNonMax::none(); capacity];
+        let index = vec![OptNonMax::none(); capacity];
         Self {
             data: vec![],
             index,
@@ -36,7 +37,7 @@ impl SparseSet {
         }
         let index = self.data.len();
         self.data.push(value);
-        self.index[value] = OptionNonMax::some(index).unwrap();
+        self.index[value] = OptNonMax::some(index);
     }
 
     /// # Panic
@@ -58,7 +59,7 @@ impl SparseSet {
         let Some(&affected_value) = self.data.get(index) else {
             return;
         };
-        self.index[affected_value] = OptionNonMax::some(index).unwrap();
+        self.index[affected_value] = OptNonMax::some(index);
     }
 
     pub fn iter(&self) -> impl Iterator<Item = usize> + Clone + '_ {
@@ -113,7 +114,7 @@ impl Clear for SparseSet {
         self.data.clear();
         self.index
             .iter_mut()
-            .for_each(|index| *index = OptionNonMax::none());
+            .for_each(|index| *index = OptNonMax::none());
     }
 }
 
