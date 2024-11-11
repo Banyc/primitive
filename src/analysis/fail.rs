@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+use crate::queue::fixed_queue::BitQueue;
+
 #[derive(Debug, Clone)]
 pub struct Fail {
-    points: HashMap<&'static str, u64>,
+    points: HashMap<&'static str, BitQueue>,
 }
 impl Fail {
     #[must_use]
@@ -16,11 +18,9 @@ impl Fail {
         let Some(events) = self.points.get_mut(name) else {
             return false;
         };
-        let is_active = *events & 1 != 0;
-        *events >>= 1;
-        is_active
+        events.dequeue().unwrap_or(false)
     }
-    pub fn set(&mut self, name: &'static str, events: u64) {
+    pub fn set(&mut self, name: &'static str, events: BitQueue) {
         self.points.insert(name, events);
     }
 }
