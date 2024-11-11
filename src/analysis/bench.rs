@@ -4,7 +4,7 @@ use std::collections::LinkedList;
 use num_traits::Float;
 
 use crate::{
-    ops::float::{NonNegF, PosF, UnitF},
+    ops::float::{NonNegR, PosR, UnitR},
     time::stopwatch::ElapsedStopwatch,
     Clear,
 };
@@ -280,7 +280,7 @@ pub struct NearZeroHistogram<const N: usize> {
 }
 impl<const N: usize> NearZeroHistogram<N> {
     #[must_use]
-    pub fn new(max_value: PosF<f64>) -> Self {
+    pub fn new(max_value: PosR<f64>) -> Self {
         let a = (N as f64) / max_value.get().ln_1p();
         Self {
             buckets: [0; N],
@@ -288,7 +288,7 @@ impl<const N: usize> NearZeroHistogram<N> {
             a,
         }
     }
-    pub fn insert(&mut self, value: NonNegF<f64>) {
+    pub fn insert(&mut self, value: NonNegR<f64>) {
         self.count += 1;
         let bucket = self.a * value.get().ln_1p();
         let bucket = bucket.round();
@@ -302,7 +302,7 @@ impl<const N: usize> NearZeroHistogram<N> {
         self.buckets[bucket] += 1;
     }
     #[must_use]
-    pub fn quartile(&self, p: UnitF<f64>) -> QuartileResult {
+    pub fn quartile(&self, p: UnitR<f64>) -> QuartileResult {
         let Some(n) = self.count.checked_sub(1) else {
             return QuartileResult::NoSamples;
         };

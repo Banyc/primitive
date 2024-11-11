@@ -45,77 +45,145 @@ macro_rules! impl_common_real_number_traits {
 /// float in \[0, 1\]
 #[derive(Clone, Copy, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct UnitF<F> {
-    v: F,
+pub struct UnitR<F> {
+    v: R<F>,
 }
-impl<F: Float> UnitF<F> {
+impl<F: Float> UnitR<F> {
     pub fn new(float: F) -> Option<Self> {
         if !(F::zero()..=F::one()).contains(&float) {
             return None;
         }
-        Some(Self { v: float })
+        Some(Self { v: R::new(float)? })
     }
+}
+impl<F> UnitR<F> {
     /// # Safety
     ///
     /// Float must be in the unit interval [0, 1]
     pub const unsafe fn new_unchecked(float: F) -> Self {
-        Self { v: float }
-    }
-    pub const fn get(&self) -> F {
-        self.v
+        Self {
+            v: R::new_unchecked(float),
+        }
     }
 }
-impl_common_real_number_traits!(UnitF, v);
+impl<F: Copy> UnitR<F> {
+    pub const fn get(&self) -> F {
+        self.v.get()
+    }
+}
+impl_common_real_number_traits!(UnitR, v);
 
 /// float in \[0, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct NonNegF<F> {
-    v: F,
+pub struct NonNegR<F> {
+    v: R<F>,
 }
-impl<F: Float> NonNegF<F> {
+impl<F: Float> NonNegR<F> {
     pub fn new(float: F) -> Option<Self> {
         if !(F::zero()..).contains(&float) {
             return None;
         }
-        Some(Self { v: float })
+        Some(Self { v: R::new(float)? })
     }
+}
+impl<F> NonNegR<F> {
     /// # Safety
     ///
     /// Float must be in \[0, inf)
     pub const unsafe fn new_unchecked(float: F) -> Self {
-        Self { v: float }
-    }
-    pub const fn get(&self) -> F {
-        self.v
+        Self {
+            v: R::new_unchecked(float),
+        }
     }
 }
-impl_common_real_number_traits!(NonNegF, v);
+impl<F: Copy> NonNegR<F> {
+    pub const fn get(&self) -> F {
+        self.v.get()
+    }
+}
+impl_common_real_number_traits!(NonNegR, v);
 
 /// float in (0, inf)
 #[derive(Clone, Copy, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct PosF<F> {
-    v: F,
+pub struct PosR<F> {
+    v: R<F>,
 }
-impl<F: Float> PosF<F> {
+impl<F: Float> PosR<F> {
     pub fn new(float: F) -> Option<Self> {
-        if NonNegF::new(float)?.get() == F::zero() {
+        if NonNegR::new(float)?.get() == F::zero() {
             return None;
         }
-        Some(Self { v: float })
+        Some(Self { v: R::new(float)? })
     }
+}
+impl<F> PosR<F> {
     /// # Safety
     ///
     /// Float must be in (0, inf)
     pub const unsafe fn new_unchecked(float: F) -> Self {
+        Self {
+            v: R::new_unchecked(float),
+        }
+    }
+}
+impl<F: Copy> PosR<F> {
+    pub const fn get(&self) -> F {
+        self.v.get()
+    }
+}
+impl_common_real_number_traits!(PosR, v);
+
+/// float in (-inf, inf)
+#[derive(Clone, Copy, PartialEq, Hash)]
+#[repr(transparent)]
+pub struct R<F> {
+    v: F,
+}
+impl<F: Float> R<F> {
+    pub fn new(float: F) -> Option<Self> {
+        if !float.is_finite() {
+            return None;
+        }
+        Some(Self { v: float })
+    }
+}
+impl<F> R<F> {
+    /// # Safety
+    ///
+    /// Float must be in (-inf, inf)
+    pub const unsafe fn new_unchecked(float: F) -> Self {
         Self { v: float }
     }
+}
+impl<F: Copy> R<F> {
     pub const fn get(&self) -> F {
         self.v
     }
 }
-impl_common_real_number_traits!(PosF, v);
+impl_common_real_number_traits!(R, v);
+
+impl<F: Float> From<UnitR<F>> for NonNegR<F> {
+    fn from(value: UnitR<F>) -> Self {
+        unsafe { Self::new_unchecked(value.get()) }
+    }
+}
+impl<F: Float> From<UnitR<F>> for R<F> {
+    fn from(value: UnitR<F>) -> Self {
+        unsafe { Self::new_unchecked(value.get()) }
+    }
+}
+impl<F: Float> From<NonNegR<F>> for R<F> {
+    fn from(value: NonNegR<F>) -> Self {
+        unsafe { Self::new_unchecked(value.get()) }
+    }
+}
+impl<F: Float> From<PosR<F>> for R<F> {
+    fn from(value: PosR<F>) -> Self {
+        unsafe { Self::new_unchecked(value.get()) }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -130,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_unit_float() {
-        let mut a = [0., 1., 0.1, 0.1].map(|x| UnitF::new(x).unwrap());
+        let mut a = [0., 1., 0.1, 0.1].map(|x| UnitR::new(x).unwrap());
         a.sort_unstable();
         assert_eq!(a.map(|x| x.get()), [0., 0.1, 0.1, 1.]);
     }

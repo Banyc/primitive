@@ -1,24 +1,24 @@
 use core::{num::NonZeroUsize, time::Duration};
 use std::time::Instant;
 
-use crate::ops::float::{PosF, UnitF};
+use crate::ops::float::{PosR, UnitR};
 
 #[derive(Debug, Clone)]
 pub struct TokenBucket {
-    sec_per_token: PosF<f64>,
+    sec_per_token: PosR<f64>,
     max_tokens: NonZeroUsize,
     tokens: usize,
-    coining_token: UnitF<f64>,
+    coining_token: UnitR<f64>,
     last_update: Instant,
 }
 impl TokenBucket {
-    pub fn new(thruput: PosF<f64>, max_tokens: NonZeroUsize, now: Instant) -> Self {
-        let sec_per_token = PosF::new(1. / thruput.get()).unwrap();
+    pub fn new(thruput: PosR<f64>, max_tokens: NonZeroUsize, now: Instant) -> Self {
+        let sec_per_token = PosR::new(1. / thruput.get()).unwrap();
         Self {
             sec_per_token,
             max_tokens,
             tokens: 0,
-            coining_token: UnitF::new(0.).unwrap(),
+            coining_token: UnitR::new(0.).unwrap(),
             last_update: now,
         }
     }
@@ -37,10 +37,10 @@ impl TokenBucket {
         self.tokens
     }
 
-    pub fn set_thruput(&mut self, thruput: PosF<f64>, now: Instant) {
+    pub fn set_thruput(&mut self, thruput: PosR<f64>, now: Instant) {
         self.fill_up(now);
 
-        let sec_per_token = PosF::new(1. / thruput.get()).unwrap();
+        let sec_per_token = PosR::new(1. / thruput.get()).unwrap();
         self.sec_per_token = sec_per_token;
     }
 
@@ -74,7 +74,7 @@ impl TokenBucket {
         let new_tokens = dur.as_secs_f64() / self.sec_per_token.get() + self.coining_token.get();
         let new_complete_tokens = new_tokens as usize;
         let coining_token = (new_tokens - new_complete_tokens as f64).clamp(0.0, 1.0);
-        let coining_token = UnitF::new(coining_token).unwrap();
+        let coining_token = UnitR::new(coining_token).unwrap();
         let tokens = self.tokens + new_complete_tokens;
         let tokens = tokens.min(self.max_tokens.get());
         self.last_update = now;
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn test_cal() {
         let now = Instant::now();
-        let thruput = PosF::new(100.).unwrap();
+        let thruput = PosR::new(100.).unwrap();
         let max_tokens = NonZeroUsize::new(usize::MAX).unwrap();
         let mut token_bucket = TokenBucket::new(thruput, max_tokens, now);
 
