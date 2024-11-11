@@ -18,36 +18,6 @@ impl<T> FloatExt for T where T: Float {}
 const FLOAT_RELATIVE_TOLERANCE: f64 = 1e-9; // for big absolute numbers
 const FLOAT_ABSOLUTE_TOLERANCE: f64 = 1e-9; // for near-zero numbers
 
-macro_rules! impl_fmt_traits {
-    ($struct: ident, $value: tt) => {
-        impl<F: Debug> Debug for $struct<F> {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                self.$value.fmt(f)
-            }
-        }
-        impl<F: core::fmt::Display> core::fmt::Display for $struct<F> {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                self.$value.fmt(f)
-            }
-        }
-    };
-}
-macro_rules! impl_ord_traits {
-    ($struct: ident, $value: tt) => {
-        impl<F: Float> Eq for $struct<F> {}
-        impl<F: Float> PartialOrd for $struct<F> {
-            fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-        impl<F: Float> Ord for $struct<F> {
-            fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-                unsafe { self.$value.partial_cmp(&other.$value).unwrap_unchecked() }
-            }
-        }
-    };
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct OptR<F, W> {
@@ -98,6 +68,36 @@ where
 {
     fn new(float: F) -> Option<Self>;
     fn get(&self) -> F;
+}
+
+macro_rules! impl_fmt_traits {
+    ($struct: ident, $value: tt) => {
+        impl<F: Debug> Debug for $struct<F> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.$value.fmt(f)
+            }
+        }
+        impl<F: core::fmt::Display> core::fmt::Display for $struct<F> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.$value.fmt(f)
+            }
+        }
+    };
+}
+macro_rules! impl_ord_traits {
+    ($struct: ident, $value: tt) => {
+        impl<F: Float> Eq for $struct<F> {}
+        impl<F: Float> PartialOrd for $struct<F> {
+            fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+        impl<F: Float> Ord for $struct<F> {
+            fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+                unsafe { self.$value.partial_cmp(&other.$value).unwrap_unchecked() }
+            }
+        }
+    };
 }
 
 /// float in \[0, 1\]
@@ -294,41 +294,22 @@ impl<F: Float> WrapNonNan<F> for NonNanF<F> {
     }
 }
 
-impl<F: Float> From<UnitR<F>> for NonNegR<F> {
-    fn from(value: UnitR<F>) -> Self {
-        unsafe { Self::new_unchecked(value.get()) }
-    }
+macro_rules! wrapper_from_to {
+    ($from: ident, $to: ident) => {
+        impl<F: Float> From<$from<F>> for $to<F> {
+            fn from(value: $from<F>) -> Self {
+                unsafe { Self::new_unchecked(value.get()) }
+            }
+        }
+    };
 }
-impl<F: Float> From<UnitR<F>> for R<F> {
-    fn from(value: UnitR<F>) -> Self {
-        unsafe { Self::new_unchecked(value.get()) }
-    }
-}
-impl<F: Float> From<UnitR<F>> for NonNanF<F> {
-    fn from(value: UnitR<F>) -> Self {
-        unsafe { Self::new_unchecked(value.get()) }
-    }
-}
-impl<F: Float> From<NonNegR<F>> for R<F> {
-    fn from(value: NonNegR<F>) -> Self {
-        unsafe { Self::new_unchecked(value.get()) }
-    }
-}
-impl<F: Float> From<NonNegR<F>> for NonNanF<F> {
-    fn from(value: NonNegR<F>) -> Self {
-        unsafe { Self::new_unchecked(value.get()) }
-    }
-}
-impl<F: Float> From<PosR<F>> for R<F> {
-    fn from(value: PosR<F>) -> Self {
-        unsafe { Self::new_unchecked(value.get()) }
-    }
-}
-impl<F: Float> From<PosR<F>> for NonNanF<F> {
-    fn from(value: PosR<F>) -> Self {
-        unsafe { Self::new_unchecked(value.get()) }
-    }
-}
+wrapper_from_to!(UnitR, NonNegR);
+wrapper_from_to!(UnitR, R);
+wrapper_from_to!(UnitR, NonNanF);
+wrapper_from_to!(NonNegR, R);
+wrapper_from_to!(NonNegR, NonNanF);
+wrapper_from_to!(PosR, R);
+wrapper_from_to!(PosR, NonNanF);
 
 #[cfg(test)]
 mod tests {
