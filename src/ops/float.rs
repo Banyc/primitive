@@ -18,7 +18,21 @@ impl<T> FloatExt for T where T: Float {}
 const FLOAT_RELATIVE_TOLERANCE: f64 = 1e-9; // for big absolute numbers
 const FLOAT_ABSOLUTE_TOLERANCE: f64 = 1e-9; // for near-zero numbers
 
-macro_rules! impl_common_real_number_traits {
+macro_rules! impl_fmt_traits {
+    ($struct: ident, $value: tt) => {
+        impl<F: Debug> Debug for $struct<F> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.$value.fmt(f)
+            }
+        }
+        impl<F: core::fmt::Display> core::fmt::Display for $struct<F> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.$value.fmt(f)
+            }
+        }
+    };
+}
+macro_rules! impl_ord_traits {
     ($struct: ident, $value: tt) => {
         impl<F: Float> Eq for $struct<F> {}
         impl<F: Float> PartialOrd for $struct<F> {
@@ -29,16 +43,6 @@ macro_rules! impl_common_real_number_traits {
         impl<F: Float> Ord for $struct<F> {
             fn cmp(&self, other: &Self) -> core::cmp::Ordering {
                 unsafe { self.$value.partial_cmp(&other.$value).unwrap_unchecked() }
-            }
-        }
-        impl<F: Debug> Debug for $struct<F> {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                self.$value.fmt(f)
-            }
-        }
-        impl<F: core::fmt::Display> core::fmt::Display for $struct<F> {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                self.$value.fmt(f)
             }
         }
     };
@@ -125,7 +129,8 @@ impl<F: Copy> UnitR<F> {
         self.v.get()
     }
 }
-impl_common_real_number_traits!(UnitR, v);
+impl_ord_traits!(UnitR, v);
+impl_fmt_traits!(UnitR, v);
 impl<F: Float> WrapNonNan<F> for UnitR<F> {
     fn new(float: F) -> Option<Self> {
         Self::new(float)
@@ -164,7 +169,8 @@ impl<F: Copy> NonNegR<F> {
         self.v.get()
     }
 }
-impl_common_real_number_traits!(NonNegR, v);
+impl_ord_traits!(NonNegR, v);
+impl_fmt_traits!(NonNegR, v);
 impl<F: Float> WrapNonNan<F> for NonNegR<F> {
     fn new(float: F) -> Option<Self> {
         Self::new(float)
@@ -203,7 +209,8 @@ impl<F: Copy> PosR<F> {
         self.v.get()
     }
 }
-impl_common_real_number_traits!(PosR, v);
+impl_ord_traits!(PosR, v);
+impl_fmt_traits!(PosR, v);
 impl<F: Float> WrapNonNan<F> for PosR<F> {
     fn new(float: F) -> Option<Self> {
         Self::new(float)
@@ -240,7 +247,8 @@ impl<F: Copy> R<F> {
         self.v
     }
 }
-impl_common_real_number_traits!(R, v);
+impl_ord_traits!(R, v);
+impl_fmt_traits!(R, v);
 impl<F: Float> WrapNonNan<F> for R<F> {
     fn new(float: F) -> Option<Self> {
         Self::new(float)
@@ -250,7 +258,7 @@ impl<F: Float> WrapNonNan<F> for R<F> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Hash)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct NonNanF<F> {
     v: F,
@@ -276,7 +284,7 @@ impl<F: Copy> NonNanF<F> {
         self.v
     }
 }
-impl_common_real_number_traits!(NonNanF, v);
+impl_fmt_traits!(NonNanF, v);
 impl<F: Float> WrapNonNan<F> for NonNanF<F> {
     fn new(float: F) -> Option<Self> {
         Self::new(float)
