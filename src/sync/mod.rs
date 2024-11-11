@@ -14,7 +14,7 @@ pub mod tests {
     where
         T: core::fmt::Debug + PartialEq + Eq + Copy,
     {
-        pub fn new(value: T) -> Self {
+        pub const fn new(value: T) -> Self {
             Self {
                 values: [value; DATA_SIZE],
             }
@@ -24,7 +24,7 @@ pub mod tests {
                 assert_eq!(&self.values[0], v, "{i}");
             }
         }
-        pub fn get(&self) -> &[T; DATA_SIZE] {
+        pub const fn get(&self) -> &[T; DATA_SIZE] {
             &self.values
         }
     }

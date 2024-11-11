@@ -12,12 +12,12 @@ pub struct StackedState<S> {
     state: RefCell<S>,
 }
 impl<S> StackedState<S> {
-    pub fn new(state: S) -> Self {
+    pub const fn new(state: S) -> Self {
         Self {
             state: RefCell::new(state),
         }
     }
-    pub fn get(&self) -> &RefCell<S> {
+    pub const fn get(&self) -> &RefCell<S> {
         &self.state
     }
 
@@ -52,7 +52,7 @@ pub struct StackedValueState<T> {
     value: T,
 }
 impl<T> StackedValueState<T> {
-    pub fn get(&self) -> &T {
+    pub const fn get(&self) -> &T {
         &self.value
     }
 }
@@ -67,7 +67,7 @@ impl<T> State for StackedValueState<T> {
 }
 pub type StackedValue<T> = StackedState<StackedValueState<T>>;
 impl<T> StackedValue<T> {
-    pub fn new_value(value: T) -> Self {
+    pub const fn new_value(value: T) -> Self {
         let state = StackedValueState { value };
         StackedState::new(state)
     }

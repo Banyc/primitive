@@ -16,13 +16,11 @@ pub struct SpmcQueue<T, const N: usize> {
     next: AtomicUsize,
 }
 impl<T, const N: usize> SpmcQueue<T, N> {
-    pub fn new() -> Self {
-        assert!(1 < N);
-        let ring = (0..N)
-            .map(|_| SeqLock::new(MaybeUninit::uninit()))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+    pub const fn new() -> Self {
+        const {
+            assert!(1 < N);
+        }
+        let ring = [const { SeqLock::new(MaybeUninit::uninit()) }; N];
         let next = AtomicUsize::new(0);
         Self { ring, next }
     }
@@ -150,12 +148,12 @@ pub struct MpmcQueue<T, const N: usize> {
     queue: SpmcQueue<T, N>,
 }
 impl<T, const N: usize> MpmcQueue<T, N> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         let write = Mutex1::new();
         let queue = SpmcQueue::new();
         Self { write, queue }
     }
-    pub fn queue(&self) -> &SpmcQueue<T, N> {
+    pub const fn queue(&self) -> &SpmcQueue<T, N> {
         &self.queue
     }
 }

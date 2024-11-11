@@ -143,7 +143,7 @@ pub struct ObjectScoped<T> {
     obj: MaybeUninit<T>,
 }
 impl<T> ObjectScoped<T> {
-    pub fn new(recycler: ObjectRecycler<T>, obj: T) -> Self {
+    pub const fn new(recycler: ObjectRecycler<T>, obj: T) -> Self {
         Self {
             recycler,
             obj: MaybeUninit::new(obj),

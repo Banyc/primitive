@@ -17,12 +17,8 @@ pub struct Queue<T, const P: usize> {
 }
 impl<T, const P: usize> Queue<T, P> {
     #[must_use]
-    pub fn new(cap: usize, timeout: Option<Duration>) -> Self {
-        let queues = (0..P)
-            .map(|_| VecDeque::new())
-            .collect::<Vec<VecDeque<Entry<T>>>>()
-            .try_into()
-            .unwrap_or_else(|_| unreachable!());
+    pub const fn new(cap: usize, timeout: Option<Duration>) -> Self {
+        let queues = [const { VecDeque::new() }; P];
         Self {
             cap,
             queues,
@@ -113,12 +109,12 @@ pub struct Entry<T> {
 }
 impl<T> Entry<T> {
     #[must_use]
-    pub fn new(item: T, insert: Instant) -> Self {
+    pub const fn new(item: T, insert: Instant) -> Self {
         Self { item, insert }
     }
 
     #[must_use]
-    pub fn insertion_time(&self) -> Instant {
+    pub const fn insertion_time(&self) -> Instant {
         self.insert
     }
     #[must_use]

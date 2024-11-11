@@ -9,16 +9,16 @@ pub struct Timer {
 }
 impl Timer {
     /// Create an cleared timer
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { start: None }
     }
 
-    pub fn restart(&mut self, now: Instant) {
+    pub const fn restart(&mut self, now: Instant) {
         self.start = Some(now);
     }
 
     /// Return the start time
-    pub fn ensure_started(&mut self, now: Instant) -> Instant {
+    pub const fn ensure_started(&mut self, now: Instant) -> Instant {
         match self.start {
             Some(x) => x,
             None => {

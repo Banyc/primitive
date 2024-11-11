@@ -70,11 +70,11 @@ impl Clear for BitSet {
 }
 
 #[must_use]
-fn word_index(bit_index: usize) -> usize {
+const fn word_index(bit_index: usize) -> usize {
     bit_index / USIZE_BITS
 }
 #[must_use]
-fn bit_offset(bit_index: usize) -> usize {
+const fn bit_offset(bit_index: usize) -> usize {
     bit_index % USIZE_BITS
 }
 

@@ -17,7 +17,7 @@ pub struct FixedQueuePointer {
 }
 impl FixedQueuePointer {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             prev_head: 0,
             next_tail: 1,

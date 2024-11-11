@@ -10,7 +10,7 @@ pub struct IndexedQueue<T> {
 }
 impl<T> IndexedQueue<T> {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             queue: VecDeque::new(),
             start: 0,

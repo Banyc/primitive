@@ -4,8 +4,10 @@ use core::{
     cell::{RefCell, UnsafeCell},
     ops::{Deref, DerefMut},
 };
+use std::fmt::Debug;
 
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct MutCell<T> {
     #[cfg(debug_assertions)]
     cell: RefCell<T>,
@@ -13,7 +15,7 @@ pub struct MutCell<T> {
     cell: UnsafeCell<T>,
 }
 impl<T> MutCell<T> {
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         #[cfg(debug_assertions)]
         let cell = RefCell::new(value);
         #[cfg(not(debug_assertions))]
@@ -48,11 +50,13 @@ impl<T> MutCell<T> {
     }
 }
 
+#[derive(Debug)]
+#[repr(transparent)]
 struct ThinWrap<'a, T> {
     value: &'a T,
 }
 impl<'a, T> ThinWrap<'a, T> {
-    pub fn new(value: &'a T) -> Self {
+    pub const fn new(value: &'a T) -> Self {
         Self { value }
     }
 }
@@ -64,11 +68,13 @@ impl<T> Deref for ThinWrap<'_, T> {
     }
 }
 
+#[derive(Debug)]
+#[repr(transparent)]
 struct ThinWrapMut<'a, T> {
     value: &'a mut T,
 }
 impl<'a, T> ThinWrapMut<'a, T> {
-    pub fn new(value: &'a mut T) -> Self {
+    pub const fn new(value: &'a mut T) -> Self {
         Self { value }
     }
 }

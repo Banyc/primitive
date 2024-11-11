@@ -2,12 +2,6 @@
 pub fn dyn_vec_init<T>(size: usize, new_value: impl Fn() -> T) -> Vec<T> {
     (0..size).map(|_| new_value()).collect()
 }
-#[must_use]
-pub fn dyn_array_init<T, const N: usize>(new_value: impl Fn() -> T) -> [T; N] {
-    let res = dyn_vec_init(N, new_value).try_into();
-    let Ok(array) = res else { unreachable!() };
-    array
-}
 
 pub trait AsSlice<T> {
     #[must_use]

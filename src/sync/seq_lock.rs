@@ -12,7 +12,7 @@ pub struct SeqLock<T> {
 }
 impl<T> SeqLock<T> {
     #[must_use]
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self {
             value: SyncUnsafeCell::new(value),
             version: AtomicU32::new(0),

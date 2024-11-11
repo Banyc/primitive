@@ -61,7 +61,7 @@ impl<F: Float> UnitF<F> {
     pub const unsafe fn new_unchecked(float: F) -> Self {
         Self { v: float }
     }
-    pub fn get(&self) -> F {
+    pub const fn get(&self) -> F {
         self.v
     }
 }
@@ -86,7 +86,7 @@ impl<F: Float> NonNegF<F> {
     pub const unsafe fn new_unchecked(float: F) -> Self {
         Self { v: float }
     }
-    pub fn get(&self) -> F {
+    pub const fn get(&self) -> F {
         self.v
     }
 }
@@ -111,7 +111,7 @@ impl<F: Float> PosF<F> {
     pub const unsafe fn new_unchecked(float: F) -> Self {
         Self { v: float }
     }
-    pub fn get(&self) -> F {
+    pub const fn get(&self) -> F {
         self.v
     }
 }

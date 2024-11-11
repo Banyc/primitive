@@ -6,7 +6,7 @@ mod benches {
     use indexmap::IndexMap;
 
     use crate::{
-        bench::HeapRandomizer,
+        analysis::bench::HeapRandomizer,
         map::{
             dense_hash_map::DenseHashMap,
             grow_dense_map::GrowDenseMap,
@@ -25,7 +25,7 @@ mod benches {
         buf: [u8; VALUE_SIZE],
     }
     impl Value {
-        pub fn new() -> Self {
+        pub const fn new() -> Self {
             Self {
                 buf: [0; VALUE_SIZE],
             }

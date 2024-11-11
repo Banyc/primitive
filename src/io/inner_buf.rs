@@ -9,7 +9,7 @@ pub struct InnerBuf {
 }
 impl InnerBuf {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             buf: VecDeque::new(),
         }

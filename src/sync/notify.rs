@@ -13,7 +13,7 @@ struct CriticalNotify {
 }
 impl Notify {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         let state = CriticalNotify {
             wait_queue: IndexedQueue::new(),
             reused_wait_tokens: vec![],
@@ -69,7 +69,7 @@ struct WaitToken {
 }
 impl WaitToken {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             notified: Mutex::new(false),
             blocker: Condvar::new(),

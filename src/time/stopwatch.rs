@@ -9,7 +9,7 @@ pub struct Stopwatch {
     start: Option<Instant>,
 }
 impl Stopwatch {
-    pub fn new(elapsed: Duration) -> Self {
+    pub const fn new(elapsed: Duration) -> Self {
         Self {
             elapsed,
             start: None,
@@ -58,7 +58,7 @@ pub struct RunningWatch<'a> {
     start: Instant,
 }
 impl RunningWatch<'_> {
-    pub fn start(&self) -> Instant {
+    pub const fn start(&self) -> Instant {
         self.start
     }
     pub fn stop(mut self) -> Duration {
@@ -91,10 +91,10 @@ impl ElapsedStopwatch {
     pub fn is_elapsed(&self) -> bool {
         self.watermark <= self.stopwatch.elapsed()
     }
-    pub fn stopwatch(&self) -> &Stopwatch {
+    pub const fn stopwatch(&self) -> &Stopwatch {
         &self.stopwatch
     }
-    pub fn stopwatch_mut(&mut self) -> &mut Stopwatch {
+    pub const fn stopwatch_mut(&mut self) -> &mut Stopwatch {
         &mut self.stopwatch
     }
 }
@@ -105,7 +105,7 @@ mod tests {
     use std::sync::mpsc;
 
     use crate::{
-        bench::ExpMovVar,
+        analysis::bench::ExpMovVar,
         ops::unit::{DurationExt, HumanDuration},
         sync::spmc::{self, spmc_channel},
         time::timer::Timer,

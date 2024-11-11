@@ -96,7 +96,7 @@ pub struct SparseFreeList<T> {
 }
 impl<T> SparseFreeList<T> {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             free: vec![],
             data: vec![],
@@ -242,7 +242,7 @@ mod benches {
         buf: [u8; VALUE_SIZE],
     }
     impl Value {
-        pub fn new() -> Self {
+        pub const fn new() -> Self {
             Self {
                 buf: [0; VALUE_SIZE],
             }

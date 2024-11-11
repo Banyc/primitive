@@ -5,6 +5,7 @@ use core::{
 
 use crate::ops::{
     len::{Capacity, Full, Len, LenExt},
+    list::{List, ListMut},
     slice::{AsSlice, AsSliceMut},
 };
 
@@ -67,6 +68,8 @@ impl<T> IndexMut<usize> for DynCappedStack<T> {
         &mut self.as_slice_mut()[index]
     }
 }
+impl<T> List<T> for DynCappedStack<T> {}
+impl<T> ListMut<T> for DynCappedStack<T> {}
 
 #[derive(Debug, Clone)]
 pub enum DynStack<T> {
@@ -125,6 +128,16 @@ impl<T> IndexMut<usize> for DynStack<T> {
         &mut self.as_slice_mut()[index]
     }
 }
+impl<T> Len for DynStack<T> {
+    fn len(&self) -> usize {
+        match self {
+            DynStack::Capped(dyn_capped_stack) => dyn_capped_stack.len(),
+            DynStack::Vec(vec) => vec.len(),
+        }
+    }
+}
+impl<T> List<T> for DynStack<T> {}
+impl<T> ListMut<T> for DynStack<T> {}
 
 #[derive(Debug, Copy)]
 pub struct StaticStack<T, const N: usize> {
@@ -133,13 +146,9 @@ pub struct StaticStack<T, const N: usize> {
 }
 impl<T, const N: usize> StaticStack<T, N> {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            array: (0..N)
-                .map(|_| MaybeUninit::uninit())
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap(),
+            array: [const { MaybeUninit::uninit() }; N],
             len: 0,
         }
     }
@@ -268,6 +277,8 @@ impl<T: Clone, const N: usize> Clone for StaticStack<T, N> {
         new
     }
 }
+impl<T, const N: usize> List<T> for StaticStack<T, N> {}
+impl<T, const N: usize> ListMut<T> for StaticStack<T, N> {}
 
 #[derive(Debug, Copy)]
 pub struct StaticRevStack<T, const N: usize> {
@@ -276,13 +287,9 @@ pub struct StaticRevStack<T, const N: usize> {
 }
 impl<T, const N: usize> StaticRevStack<T, N> {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            array: (0..N)
-                .map(|_| MaybeUninit::uninit())
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap(),
+            array: [const { MaybeUninit::uninit() }; N],
             len: 0,
         }
     }
@@ -416,3 +423,5 @@ impl<T: Clone, const N: usize> Clone for StaticRevStack<T, N> {
         new
     }
 }
+impl<T, const N: usize> List<T> for StaticRevStack<T, N> {}
+impl<T, const N: usize> ListMut<T> for StaticRevStack<T, N> {}

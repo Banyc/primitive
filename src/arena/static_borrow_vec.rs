@@ -4,7 +4,7 @@ pub struct EmptyBorrowVec<T: 'static> {
 }
 impl<T: 'static> EmptyBorrowVec<T> {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             empty: Some(vec![]),
         }
@@ -18,7 +18,7 @@ impl<T: 'static> EmptyBorrowVec<T> {
     }
 
     #[must_use]
-    pub fn get_mut<'t>(&mut self) -> BorrowVecGuard<'_, 't, T> {
+    pub const fn get_mut<'t>(&mut self) -> BorrowVecGuard<'_, 't, T> {
         let vec = Some(self.empty.take().unwrap());
         BorrowVecGuard { parent: self, vec }
     }
@@ -36,11 +36,11 @@ pub struct BorrowVecGuard<'guard, 't, T: 'static> {
 }
 impl<'t, T> BorrowVecGuard<'_, 't, T> {
     #[must_use]
-    pub fn get(&self) -> &Vec<&T> {
+    pub const fn get(&self) -> &Vec<&T> {
         self.vec.as_ref().unwrap()
     }
     #[must_use]
-    pub fn get_mut(&mut self) -> &mut Vec<&'t T> {
+    pub const fn get_mut(&mut self) -> &mut Vec<&'t T> {
         self.vec.as_mut().unwrap()
     }
 }
@@ -65,11 +65,11 @@ impl<'t, T> BorrowVec<'t, T> {
     }
 
     #[must_use]
-    pub fn get(&self) -> &Vec<&T> {
+    pub const fn get(&self) -> &Vec<&T> {
         &self.vec
     }
     #[must_use]
-    pub fn get_mut(&mut self) -> &mut Vec<&'t T> {
+    pub const fn get_mut(&mut self) -> &mut Vec<&'t T> {
         &mut self.vec
     }
 }

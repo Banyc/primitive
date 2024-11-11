@@ -14,7 +14,7 @@ pub struct HeapRandomizer {
     list: LinkedList<usize>,
 }
 impl HeapRandomizer {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             list: LinkedList::new(),
         }
@@ -53,7 +53,7 @@ pub struct Bencher {
     config: BencherConfig,
 }
 impl Bencher {
-    pub fn new(config: BencherConfig) -> Self {
+    pub const fn new(config: BencherConfig) -> Self {
         Self { config }
     }
 
@@ -201,7 +201,7 @@ impl<R> ExpMovAvg<R>
 where
     R: Float + From<f64>,
 {
-    pub fn from_alpha(alpha: R) -> Self {
+    pub const fn from_alpha(alpha: R) -> Self {
         Self { prev: None, alpha }
     }
     pub fn from_periods(n: NonZeroUsize) -> Self {
@@ -209,7 +209,7 @@ where
         Self::from_alpha(alpha.into())
     }
 
-    pub fn get(&self) -> Option<R> {
+    pub const fn get(&self) -> Option<R> {
         self.prev
     }
     pub fn update(&mut self, x: R) {
@@ -232,7 +232,7 @@ impl<R> ExpMovVar<R>
 where
     R: Float + From<f64>,
 {
-    pub fn from_alpha(alpha: R) -> Self {
+    pub const fn from_alpha(alpha: R) -> Self {
         Self {
             mean: ExpMovAvg::from_alpha(alpha),
             var: ExpMovAvg::from_alpha(alpha),
@@ -252,10 +252,10 @@ where
             self.var.update(var);
         }
     }
-    pub fn mean(&self) -> &ExpMovAvg<R> {
+    pub const fn mean(&self) -> &ExpMovAvg<R> {
         &self.mean
     }
-    pub fn var(&self) -> &ExpMovAvg<R> {
+    pub const fn var(&self) -> &ExpMovAvg<R> {
         &self.var
     }
 }

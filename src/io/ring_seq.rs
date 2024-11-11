@@ -32,11 +32,11 @@ pub struct RingSeq<T> {
 
 impl<T> RingSeq<T> {
     #[must_use]
-    pub fn new(v: T) -> Self {
+    pub const fn new(v: T) -> Self {
         Self { v }
     }
     #[must_use]
-    pub fn value(&self) -> &T {
+    pub const fn value(&self) -> &T {
         &self.v
     }
 }

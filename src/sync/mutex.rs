@@ -11,7 +11,7 @@ pub struct Mutex1 {
     lock: AtomicBool,
 }
 impl Mutex1 {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         let lock = AtomicBool::new(false);
         Self { lock }
     }
@@ -40,7 +40,7 @@ pub struct SpinMutex<T> {
     value: SyncUnsafeCell<T>,
 }
 impl<T> SpinMutex<T> {
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self {
             lock: Mutex1::new(),
             value: SyncUnsafeCell::new(value),

@@ -31,17 +31,14 @@ impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
     const KEYS_ASSOC_WAYS: usize = 2;
     #[must_use]
     pub fn with_hasher(hasher: H) -> Self {
-        assert!(Self::EVICT_WINDOW <= N);
+        const {
+            assert!(Self::EVICT_WINDOW <= N);
+        }
         let direct_sets =
             NonZeroUsize::new(N + (N as f64 * (1. / Self::KEYS_LOAD_FACTOR - 1.)) as usize)
                 .unwrap();
         let assoc_ways = NonZeroUsize::new(Self::KEYS_ASSOC_WAYS).unwrap();
-        let values = (0..N)
-            .map(|_| None)
-            .collect::<Vec<_>>()
-            .try_into()
-            .ok()
-            .unwrap();
+        let values = [const { None }; N];
         Self {
             keys: FixedHashMap::with_hasher(direct_sets, assoc_ways, hasher),
             values,

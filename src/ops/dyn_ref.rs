@@ -4,7 +4,7 @@ pub struct DynRef<T, U> {
     convert: fn(&T) -> &U,
 }
 impl<T, U> DynRef<T, U> {
-    pub fn new(value: T, convert: fn(&T) -> &U) -> Self {
+    pub const fn new(value: T, convert: fn(&T) -> &U) -> Self {
         Self { value, convert }
     }
     pub fn convert(&self) -> &U {
@@ -12,7 +12,7 @@ impl<T, U> DynRef<T, U> {
     }
 }
 impl<T> DynRef<T, T> {
-    pub fn identity(value: T) -> Self {
+    pub const fn identity(value: T) -> Self {
         Self::new(value, |v| v)
     }
 }

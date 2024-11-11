@@ -1,6 +1,8 @@
 use crate::{
-    non_max::OptionNonMax,
-    ops::len::{Capacity, Len},
+    ops::{
+        len::{Capacity, Len},
+        non_max::OptionNonMax,
+    },
     Clear,
 };
 
