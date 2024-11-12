@@ -69,6 +69,16 @@ impl<T, const CHUNK_SIZE: usize> Clear for StableVec<T, CHUNK_SIZE> {
         self.size = 0;
     }
 }
+impl<T, const CHUNK_SIZE: usize> Drop for StableVec<T, CHUNK_SIZE> {
+    fn drop(&mut self) {
+        for i in 0..self.size {
+            let (chunk, offset) = Self::indices(i);
+            unsafe {
+                self.chunks[chunk][offset].assume_init_drop();
+            }
+        }
+    }
+}
 
 type StorePtr<T, const CHUNK_SIZE: usize> = Arc<UnsafeCell<StableVec<T, CHUNK_SIZE>>>;
 #[derive(Debug)]
