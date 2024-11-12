@@ -215,7 +215,7 @@ mod tests {
     const QUEUE_SIZE: usize = 2;
 
     #[test]
-    fn test_spmcast_queue() {
+    fn test_spmcast() {
         let (rdr, mut wtr) = spmcast_channel::<RepeatedData<_, DATA_COUNT>, QUEUE_SIZE>();
         let mut threads = vec![];
         for _ in 0..THREADS {
@@ -268,9 +268,9 @@ mod tests {
             buf.into()
         };
         let queue = unsafe { core::mem::transmute::<Arc<Buf>, Arc<Queue>>(buf) };
-        test_mpmcast_queue(queue);
+        test_mpmcast(queue);
     }
-    fn test_mpmcast_queue<const QUEUE_SIZE: usize>(
+    fn test_mpmcast<const QUEUE_SIZE: usize>(
         queue: Arc<MpMcast<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>>,
     ) {
         let rdr = MpMcastReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
