@@ -139,7 +139,7 @@ impl<T> Len for DynStack<T> {
 impl<T> List<T> for DynStack<T> {}
 impl<T> ListMut<T> for DynStack<T> {}
 
-#[derive(Debug, Copy)]
+#[derive(Debug)]
 pub struct StaticStack<T, const N: usize> {
     array: [MaybeUninit<T>; N],
     len: usize,
@@ -279,8 +279,15 @@ impl<T: Clone, const N: usize> Clone for StaticStack<T, N> {
 }
 impl<T, const N: usize> List<T> for StaticStack<T, N> {}
 impl<T, const N: usize> ListMut<T> for StaticStack<T, N> {}
+impl<T, const N: usize> Drop for StaticStack<T, N> {
+    fn drop(&mut self) {
+        for i in 0..self.len {
+            unsafe { self.array[i].assume_init_drop() };
+        }
+    }
+}
 
-#[derive(Debug, Copy)]
+#[derive(Debug)]
 pub struct StaticRevStack<T, const N: usize> {
     len: usize,
     array: [MaybeUninit<T>; N],
@@ -425,3 +432,10 @@ impl<T: Clone, const N: usize> Clone for StaticRevStack<T, N> {
 }
 impl<T, const N: usize> List<T> for StaticRevStack<T, N> {}
 impl<T, const N: usize> ListMut<T> for StaticRevStack<T, N> {}
+impl<T, const N: usize> Drop for StaticRevStack<T, N> {
+    fn drop(&mut self) {
+        for i in self.start()..self.array.len() {
+            unsafe { self.array[i].assume_init_drop() };
+        }
+    }
+}
