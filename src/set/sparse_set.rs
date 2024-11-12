@@ -1,7 +1,7 @@
 use crate::{
     ops::{
         len::{Capacity, Len},
-        non_max::OptNonMax,
+        non_max::{NonMax, OptNonMax},
         opt::Opt,
     },
     Clear,
@@ -37,7 +37,7 @@ impl SparseSet {
         }
         let index = self.data.len();
         self.data.push(value);
-        self.index[value] = OptNonMax::some(index);
+        self.index[value] = OptNonMax::some(NonMax::new(index).unwrap());
     }
 
     /// # Panic
@@ -59,7 +59,7 @@ impl SparseSet {
         let Some(&affected_value) = self.data.get(index) else {
             return;
         };
-        self.index[affected_value] = OptNonMax::some(index);
+        self.index[affected_value] = OptNonMax::some(NonMax::new(index).unwrap());
     }
 
     pub fn iter(&self) -> impl Iterator<Item = usize> + Clone + '_ {

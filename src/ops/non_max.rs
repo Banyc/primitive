@@ -5,7 +5,7 @@ use super::opt::Opt;
 pub struct OptNonMax<T> {
     v: T,
 }
-impl<T> Opt<T> for OptNonMax<T>
+impl<T> Opt<NonMax<T>> for OptNonMax<T>
 where
     T: num_traits::Bounded + Eq + Copy,
 {
@@ -13,35 +13,60 @@ where
     fn none() -> Self {
         Self { v: T::max_value() }
     }
-    fn some(v: T) -> Self {
-        assert!(v != T::max_value());
-        Self { v }
+    fn some(v: NonMax<T>) -> Self {
+        Self { v: v.get() }
     }
     fn get(&self) -> Option<Self::GetOut> {
-        if self.v == T::max_value() {
-            return None;
-        }
-        Some(self.v)
+        NonMax::new(self.v).map(|v| v.get())
     }
-    fn take(&mut self) -> Option<T> {
+    fn take(&mut self) -> Option<NonMax<T>> {
         let v = self.get()?;
         *self = Self::none();
-        Some(v)
+        Some(unsafe { NonMax::new_unchecked(v) })
     }
 }
-impl<T> From<OptNonMax<T>> for Option<T>
+impl<T> From<OptNonMax<T>> for Option<NonMax<T>>
 where
     T: num_traits::Bounded + Eq + Copy,
 {
     fn from(value: OptNonMax<T>) -> Self {
-        value.map(|v| Some(v)).unwrap_or(None)
+        value.map(Some).unwrap_or(None)
     }
 }
-impl<T> From<Option<T>> for OptNonMax<T>
+impl<T> From<Option<NonMax<T>>> for OptNonMax<T>
 where
     T: num_traits::Bounded + Eq + Copy,
 {
-    fn from(value: Option<T>) -> Self {
-        value.map(|v| Self::some(v)).unwrap_or(Self::none())
+    fn from(value: Option<NonMax<T>>) -> Self {
+        value.map(Self::some).unwrap_or(Self::none())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct NonMax<T> {
+    v: T,
+}
+impl<T> NonMax<T>
+where
+    T: num_traits::Bounded + Eq,
+{
+    pub fn new(v: T) -> Option<Self> {
+        if v == T::max_value() {
+            return None;
+        }
+        Some(Self { v })
+    }
+    /// # Safety
+    ///
+    /// Make sure input is not maxed out
+    pub const unsafe fn new_unchecked(v: T) -> Self {
+        Self { v }
+    }
+    pub fn get(&self) -> T
+    where
+        T: Copy,
+    {
+        self.v
     }
 }
