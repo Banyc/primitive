@@ -3,21 +3,21 @@ use core::mem::MaybeUninit;
 use crate::ops::slice::dyn_vec_init;
 
 pub trait Chunks: Iterator + Sized {
-    fn static_chunks<T, const CHUNK_SIZE: usize>(self, for_each: impl FnMut(&[T]))
+    fn static_chunks<T, const CHUNK_SIZE: usize>(self, for_each: impl FnMut(&mut [T]))
     where
         Self: Iterator<Item = T>,
     {
         let mut tray = [const { MaybeUninit::uninit() }; CHUNK_SIZE];
         self.chunks(&mut tray, for_each);
     }
-    fn dyn_chunks<T, const N: usize>(self, chunk_size: usize, for_each: impl FnMut(&[T]))
+    fn dyn_chunks<T, const N: usize>(self, chunk_size: usize, for_each: impl FnMut(&mut [T]))
     where
         Self: Iterator<Item = T>,
     {
         let mut tray = dyn_vec_init(chunk_size, || MaybeUninit::uninit());
         self.chunks(&mut tray, for_each);
     }
-    fn chunks<T>(mut self, tray: &mut [MaybeUninit<T>], mut for_each: impl FnMut(&[T]))
+    fn chunks<T>(mut self, tray: &mut [MaybeUninit<T>], mut for_each: impl FnMut(&mut [T]))
     where
         Self: Iterator<Item = T>,
     {
@@ -33,9 +33,13 @@ pub trait Chunks: Iterator + Sized {
                 }
             }
             if i != 0 {
-                let tray = &tray[..i];
-                let tray = unsafe { core::mem::transmute::<&[MaybeUninit<T>], &[T]>(tray) };
-                for_each(tray);
+                let raw_chunk = &mut tray[..i];
+                let chunk =
+                    unsafe { core::mem::transmute::<&mut [MaybeUninit<T>], &mut [T]>(raw_chunk) };
+                for_each(chunk);
+                for v in raw_chunk {
+                    unsafe { v.assume_init_drop() };
+                }
                 i = 0;
             }
             if is_end {
@@ -48,6 +52,8 @@ impl<T> Chunks for T where T: Iterator {}
 #[cfg(test)]
 #[test]
 fn test_chunks() {
+    use std::sync::{Arc, Mutex};
+
     {
         let mut buf = vec![];
         let a: [usize; 3] = [0, 1, 2];
@@ -61,5 +67,25 @@ fn test_chunks() {
         a.iter()
             .static_chunks::<_, 2>(|tray| buf.push(tray.iter().copied().sum::<usize>()));
         assert_eq!(&buf, &[1, 5]);
+    }
+    {
+        let drop_times = Arc::new(Mutex::new(0));
+        struct Droppy {
+            pub drop_times: Arc<Mutex<usize>>,
+        }
+        impl Drop for Droppy {
+            fn drop(&mut self) {
+                *self.drop_times.lock().unwrap() += 1;
+            }
+        }
+        let a: [Droppy; 1] = [Droppy {
+            drop_times: drop_times.clone(),
+        }];
+        let mut access_times = 0;
+        a.into_iter().static_chunks::<_, 2>(|_| {
+            access_times += 1;
+        });
+        assert_eq!(*drop_times.lock().unwrap(), 1);
+        assert_eq!(access_times, 1);
     }
 }
