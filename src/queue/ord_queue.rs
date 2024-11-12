@@ -4,11 +4,11 @@ use std::collections::{BinaryHeap, VecDeque};
 use crate::{map::MapInsert, ops::len::Len, ops::opt_cmp::MinNoneOptCmp, Clear};
 
 #[derive(Debug, Clone)]
-pub struct OrderedQueue<K, V> {
+pub struct OrdQueue<K, V> {
     min_heap: BinaryHeap<Reverse<Entry<K, V>>>,
     linear: VecDeque<Entry<K, V>>,
 }
-impl<K: Ord, V> OrderedQueue<K, V> {
+impl<K: Ord, V> OrdQueue<K, V> {
     pub fn new() -> Self {
         Self {
             min_heap: BinaryHeap::new(),
@@ -46,7 +46,7 @@ impl<K: Ord, V> OrderedQueue<K, V> {
         }
     }
 }
-impl<K: Ord, V> MapInsert<K, V> for OrderedQueue<K, V> {
+impl<K: Ord, V> MapInsert<K, V> for OrdQueue<K, V> {
     type Out = ();
     fn insert(&mut self, key: K, value: V) {
         let entry = Entry { key, value };
@@ -58,17 +58,17 @@ impl<K: Ord, V> MapInsert<K, V> for OrderedQueue<K, V> {
         self.min_heap.push(Reverse(entry));
     }
 }
-impl<K: Ord, V> Default for OrderedQueue<K, V> {
+impl<K: Ord, V> Default for OrdQueue<K, V> {
     fn default() -> Self {
         Self::new()
     }
 }
-impl<K, V> Len for OrderedQueue<K, V> {
+impl<K, V> Len for OrdQueue<K, V> {
     fn len(&self) -> usize {
         self.linear.len() + self.min_heap.len()
     }
 }
-impl<K, V> Clear for OrderedQueue<K, V> {
+impl<K, V> Clear for OrdQueue<K, V> {
     fn clear(&mut self) {
         self.linear.clear();
         self.min_heap.clear();
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_ordered_queue() {
-        let mut q = OrderedQueue::new();
+        let mut q = OrdQueue::new();
         assert!(q.pop().is_none());
         q.insert(3, 3);
         assert_eq!(q.peek().unwrap(), (&3, &3));

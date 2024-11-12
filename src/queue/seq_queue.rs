@@ -6,7 +6,7 @@ use num_traits::{CheckedAdd, CheckedSub, NumCast, One};
 use crate::{
     map::MapInsert,
     ops::len::{Capacity, Full, Len},
-    queue::ordered_queue::OrderedQueue,
+    queue::ord_queue::OrdQueue,
     Clear,
 };
 
@@ -14,7 +14,7 @@ use super::fixed_queue::BitQueue;
 
 #[derive(Debug, Clone)]
 pub struct SeqQueue<K, V> {
-    queue: OrderedQueue<K, V>,
+    queue: OrdQueue<K, V>,
     next: Option<K>,
     /// There could be `K` in [`Self::queue`] that is not covered by [`Self::keys`]
     keys: Option<SeqQueueKeys<K>>,
@@ -34,7 +34,7 @@ where
         let mut win = BitQueue::new(window_size_at_least.get());
         reset_bit_win(&mut win);
         Self {
-            queue: OrderedQueue::new(),
+            queue: OrdQueue::new(),
             next: None,
             keys: Some(SeqQueueKeys {
                 win,
@@ -46,7 +46,7 @@ where
     #[must_use]
     pub fn new_unstable() -> Self {
         Self {
-            queue: OrderedQueue::new(),
+            queue: OrdQueue::new(),
             next: None,
             keys: None,
         }
