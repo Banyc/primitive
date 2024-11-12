@@ -10,12 +10,12 @@ use crate::{
 
 /// The lower the priority number, the higher the priority
 #[derive(Debug, Clone)]
-pub struct Queue<T, const P: usize> {
+pub struct ReqQueue<T, const P: usize> {
     cap: usize,
     queues: [VecDeque<Entry<T>>; P],
     timeout: Option<Duration>,
 }
-impl<T, const P: usize> Queue<T, P> {
+impl<T, const P: usize> ReqQueue<T, P> {
     #[must_use]
     pub const fn new(cap: usize, timeout: Option<Duration>) -> Self {
         let queues = [const { VecDeque::new() }; P];
@@ -77,18 +77,18 @@ impl<T, const P: usize> Queue<T, P> {
         None
     }
 }
-impl<T, const P: usize> Len for Queue<T, P> {
+impl<T, const P: usize> Len for ReqQueue<T, P> {
     fn len(&self) -> usize {
         self.queues.iter().map(|q| q.len()).sum()
     }
 }
-impl<T, const P: usize> Capacity for Queue<T, P> {
+impl<T, const P: usize> Capacity for ReqQueue<T, P> {
     fn capacity(&self) -> usize {
         self.cap
     }
 }
 
-impl<T, const P: usize> Clear for Queue<T, P> {
+impl<T, const P: usize> Clear for ReqQueue<T, P> {
     fn clear(&mut self) {
         for queue in &mut self.queues {
             queue.clear();
