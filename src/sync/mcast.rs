@@ -139,7 +139,7 @@ impl<T, const N: usize, Q> SpMcastReader<T, N, Q> {
     }
 }
 
-/// - message overriding
+/// - message overwriting
 #[derive(Debug)]
 pub struct MpMcast<T, const N: usize> {
     write: Mutex1,
