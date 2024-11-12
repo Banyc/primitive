@@ -107,7 +107,7 @@ mod tests {
     use crate::{
         analysis::bench::ExpMovVar,
         ops::unit::{DurationExt, HumanDuration},
-        sync::spmc::{self, spmc_channel},
+        sync::mcast::{self, spmcast_channel},
         time::timer::Timer,
     };
 
@@ -152,9 +152,9 @@ mod tests {
             crossbeam::channel::Sender::send(self, msg).map_err(|e| e.0)
         }
     }
-    impl<T: Copy, const N: usize> ChanSend<T> for spmc::SpmcQueueWriter<T, N> {
+    impl<T: Copy, const N: usize> ChanSend<T> for mcast::SpMcastWriter<T, N> {
         fn send(&mut self, msg: T) -> Result<(), T> {
-            spmc::SpmcQueueWriter::push(self, msg);
+            mcast::SpMcastWriter::push(self, msg);
             Ok(())
         }
     }
@@ -191,17 +191,17 @@ mod tests {
             })
         }
     }
-    impl<T: Copy, const N: usize, Q> ChanRecv<T> for spmc::SpmcQueueReader<T, N, Q> {
+    impl<T: Copy, const N: usize, Q> ChanRecv<T> for mcast::SpMcastReader<T, N, Q> {
         fn recv(&mut self) -> Result<T, ()> {
             loop {
-                let Some(msg) = spmc::SpmcQueueReader::pop(self) else {
+                let Some(msg) = mcast::SpMcastReader::pop(self) else {
                     continue;
                 };
                 return Ok(msg);
             }
         }
         fn try_recv(&mut self) -> Result<T, TryRecvError> {
-            spmc::SpmcQueueReader::pop(self).ok_or(TryRecvError::Empty)
+            mcast::SpMcastReader::pop(self).ok_or(TryRecvError::Empty)
         }
     }
 
@@ -252,8 +252,8 @@ mod tests {
     }
     #[test]
     #[ignore]
-    fn bench_channel_latency_spmc() {
-        let (rx, tx) = spmc_channel::<Instant, 2>();
+    fn bench_channel_latency_spmcast() {
+        let (rx, tx) = spmcast_channel::<Instant, 2>();
         bench_channel_latency(tx, rx);
     }
 

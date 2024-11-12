@@ -9,13 +9,13 @@ use crate::ops::{dyn_ref::DynRef, ring::RingSpace};
 
 use super::{mutex::Mutex1, seq_lock::SeqLock};
 
-/// - message overriding
+/// - message overwriting
 #[derive(Debug)]
-pub struct SpmcQueue<T, const N: usize> {
+pub struct SpMcast<T, const N: usize> {
     ring: [SeqLock<MaybeUninit<T>>; N],
     next: AtomicUsize,
 }
-impl<T, const N: usize> SpmcQueue<T, N> {
+impl<T, const N: usize> SpMcast<T, N> {
     pub const fn new() -> Self {
         const {
             assert!(1 < N);
@@ -42,7 +42,7 @@ impl<T, const N: usize> SpmcQueue<T, N> {
         (next, MinVer(min_ver))
     }
 }
-impl<T, const N: usize> SpmcQueue<T, N>
+impl<T, const N: usize> SpMcast<T, N>
 where
     T: Copy,
 {
@@ -73,7 +73,7 @@ where
         Some((value, min_ver))
     }
 }
-impl<T, const N: usize> Default for SpmcQueue<T, N> {
+impl<T, const N: usize> Default for SpMcast<T, N> {
     fn default() -> Self {
         Self::new()
     }
@@ -82,22 +82,20 @@ impl<T, const N: usize> Default for SpmcQueue<T, N> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MinVer(u32);
 
-pub fn spmc_channel<T, const N: usize>() -> (
-    SpmcQueueReader<T, N, Arc<SpmcQueue<T, N>>>,
-    SpmcQueueWriter<T, N>,
-) {
-    let queue = SpmcQueue::new();
+pub fn spmcast_channel<T, const N: usize>(
+) -> (SpMcastReader<T, N, Arc<SpMcast<T, N>>>, SpMcastWriter<T, N>) {
+    let queue = SpMcast::new();
     let queue = Arc::new(queue);
     let queue_ref = DynRef::new(Arc::clone(&queue), |q| q.as_ref());
-    let reader = SpmcQueueReader::new(queue_ref);
-    let writer = SpmcQueueWriter { queue };
+    let reader = SpMcastReader::new(queue_ref);
+    let writer = SpMcastWriter { queue };
     (reader, writer)
 }
 #[derive(Debug)]
-pub struct SpmcQueueWriter<T, const N: usize> {
-    queue: Arc<SpmcQueue<T, N>>,
+pub struct SpMcastWriter<T, const N: usize> {
+    queue: Arc<SpMcast<T, N>>,
 }
-impl<T, const N: usize> SpmcQueueWriter<T, N>
+impl<T, const N: usize> SpMcastWriter<T, N>
 where
     T: Copy,
 {
@@ -106,15 +104,15 @@ where
     }
 }
 #[derive(Debug, Clone)]
-pub struct SpmcQueueReader<T, const N: usize, Q> {
-    queue: DynRef<Q, SpmcQueue<T, N>>,
+pub struct SpMcastReader<T, const N: usize, Q> {
+    queue: DynRef<Q, SpMcast<T, N>>,
     position: usize,
     min_ver: MinVer,
     read_once: bool,
     _item: PhantomData<T>,
 }
-impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q> {
-    pub fn new(queue: DynRef<Q, SpmcQueue<T, N>>) -> Self {
+impl<T, const N: usize, Q> SpMcastReader<T, N, Q> {
+    pub fn new(queue: DynRef<Q, SpMcast<T, N>>) -> Self {
         let (position, min_ver) = queue.convert().next_version();
         Self {
             queue,
@@ -143,26 +141,26 @@ impl<T, const N: usize, Q> SpmcQueueReader<T, N, Q> {
 
 /// - message overriding
 #[derive(Debug)]
-pub struct MpmcQueue<T, const N: usize> {
+pub struct MpMcast<T, const N: usize> {
     write: Mutex1,
-    queue: SpmcQueue<T, N>,
+    queue: SpMcast<T, N>,
 }
-impl<T, const N: usize> MpmcQueue<T, N> {
+impl<T, const N: usize> MpMcast<T, N> {
     pub const fn new() -> Self {
         let write = Mutex1::new();
-        let queue = SpmcQueue::new();
+        let queue = SpMcast::new();
         Self { write, queue }
     }
-    pub const fn queue(&self) -> &SpmcQueue<T, N> {
+    pub const fn queue(&self) -> &SpMcast<T, N> {
         &self.queue
     }
 }
-impl<T, const N: usize> Default for MpmcQueue<T, N> {
+impl<T, const N: usize> Default for MpMcast<T, N> {
     fn default() -> Self {
         Self::new()
     }
 }
-impl<T, const N: usize> MpmcQueue<T, N>
+impl<T, const N: usize> MpMcast<T, N>
 where
     T: Copy,
 {
@@ -176,28 +174,26 @@ where
     }
 }
 #[allow(clippy::type_complexity)]
-pub fn mpmc_channel<T, const N: usize>() -> (
-    MpmcQueueReader<T, N, Arc<MpmcQueue<T, N>>>,
-    Arc<MpmcQueue<T, N>>,
-) {
-    let queue = MpmcQueue::new();
+pub fn mpmcast_channel<T, const N: usize>(
+) -> (MpMcastReader<T, N, Arc<MpMcast<T, N>>>, Arc<MpMcast<T, N>>) {
+    let queue = MpMcast::new();
     let queue = Arc::new(queue);
-    let reader = MpmcQueueReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
+    let reader = MpMcastReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
     let writer = queue;
     (reader, writer)
 }
 #[derive(Debug, Clone)]
-pub struct MpmcQueueReader<T, const N: usize, Q> {
-    reader: SpmcQueueReader<T, N, DynRef<Q, MpmcQueue<T, N>>>,
+pub struct MpMcastReader<T, const N: usize, Q> {
+    reader: SpMcastReader<T, N, DynRef<Q, MpMcast<T, N>>>,
 }
-impl<T, const N: usize, Q> MpmcQueueReader<T, N, Q> {
-    pub fn new(queue: DynRef<Q, MpmcQueue<T, N>>) -> Self {
+impl<T, const N: usize, Q> MpMcastReader<T, N, Q> {
+    pub fn new(queue: DynRef<Q, MpMcast<T, N>>) -> Self {
         let queue_ref = DynRef::new(queue, |q| q.convert().queue());
-        let reader = SpmcQueueReader::new(queue_ref);
+        let reader = SpMcastReader::new(queue_ref);
         Self { reader }
     }
 }
-impl<T, const N: usize, Q> MpmcQueueReader<T, N, Q>
+impl<T, const N: usize, Q> MpMcastReader<T, N, Q>
 where
     T: Copy,
 {
@@ -219,8 +215,8 @@ mod tests {
     const QUEUE_SIZE: usize = 2;
 
     #[test]
-    fn test_spmc_queue() {
-        let (rdr, mut wtr) = spmc_channel::<RepeatedData<_, DATA_COUNT>, QUEUE_SIZE>();
+    fn test_spmcast_queue() {
+        let (rdr, mut wtr) = spmcast_channel::<RepeatedData<_, DATA_COUNT>, QUEUE_SIZE>();
         let mut threads = vec![];
         for _ in 0..THREADS {
             let handle = std::thread::spawn({
@@ -261,23 +257,23 @@ mod tests {
 
     #[test]
     fn test_transmute() {
-        type Queue = MpmcQueue<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>;
+        type Queue = MpMcast<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>;
         const BUF_SIZE: usize = core::mem::size_of::<Queue>();
         type Buf = [u8; BUF_SIZE];
         let mut buf = Box::new([0; BUF_SIZE]);
         let buf = {
-            let queue: Queue = MpmcQueue::new();
+            let queue: Queue = MpMcast::new();
             let bytes = unsafe { core::mem::transmute::<Queue, Buf>(queue) };
             buf.copy_from_slice(&bytes);
             buf.into()
         };
         let queue = unsafe { core::mem::transmute::<Arc<Buf>, Arc<Queue>>(buf) };
-        test_mpmc_queue(queue);
+        test_mpmcast_queue(queue);
     }
-    fn test_mpmc_queue<const QUEUE_SIZE: usize>(
-        queue: Arc<MpmcQueue<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>>,
+    fn test_mpmcast_queue<const QUEUE_SIZE: usize>(
+        queue: Arc<MpMcast<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>>,
     ) {
-        let rdr = MpmcQueueReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
+        let rdr = MpMcastReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
         let wtr = queue;
         let mut threads = vec![];
         for _ in 0..THREADS {
