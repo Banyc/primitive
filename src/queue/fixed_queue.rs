@@ -1,10 +1,11 @@
-use core::{marker::PhantomData, mem::MaybeUninit};
+use core::{marker::PhantomData, mem::MaybeUninit, num::NonZeroUsize};
 
 use crate::{
     ops::{
         len::{Capacity, Len, LenExt},
         list::ListMut,
         ring::RingSpace,
+        slice::{AsSlice, AsSliceMut},
     },
     set::bit_set::BitSet,
     Clear,
@@ -35,26 +36,20 @@ impl FixedQueuePointer {
     #[must_use]
     pub fn head(&self, cap: usize) -> usize {
         #[cfg(debug_assertions)]
-        {
-            assert_eq!(self.cap, cap);
-        }
+        assert_eq!(self.cap, cap);
         self.prev_head.ring_add(1, cap)
     }
     #[must_use]
     pub fn len(&self, cap: usize) -> usize {
         #[cfg(debug_assertions)]
-        {
-            assert_eq!(self.cap, cap);
-        }
+        assert_eq!(self.cap, cap);
         let dist = self.next_tail.ring_sub(self.prev_head, cap);
         dist.checked_sub(1).unwrap_or(cap)
     }
     #[must_use]
     pub fn enqueue(&mut self, cap: usize) -> usize {
         #[cfg(debug_assertions)]
-        {
-            assert_eq!(self.cap, cap);
-        }
+        assert_eq!(self.cap, cap);
         if self.prev_head == self.next_tail {
             panic!("out of buffer space");
         }
@@ -63,11 +58,28 @@ impl FixedQueuePointer {
         index
     }
     #[must_use]
+    pub fn batch_enqueue(
+        &mut self,
+        amount: NonZeroUsize,
+        cap: usize,
+    ) -> (core::ops::Range<usize>, Option<core::ops::Range<usize>>) {
+        #[cfg(debug_assertions)]
+        assert_eq!(self.cap, cap);
+        let space = cap - self.len(cap);
+        assert!(amount.get() <= space);
+        let start = self.next_tail;
+        self.next_tail = self.next_tail.ring_add(amount.get(), cap);
+        let end = self.next_tail;
+        if start < end {
+            (start..end, None)
+        } else {
+            ((start..cap + 1), Some(0..end))
+        }
+    }
+    #[must_use]
     pub fn dequeue(&mut self, cap: usize) -> Option<usize> {
         #[cfg(debug_assertions)]
-        {
-            assert_eq!(self.cap, cap);
-        }
+        assert_eq!(self.cap, cap);
         let is_empty = self.len(cap) == 0;
         if is_empty {
             return None;
@@ -75,6 +87,29 @@ impl FixedQueuePointer {
         let index = self.head(cap);
         self.prev_head = index;
         Some(index)
+    }
+    #[must_use]
+    pub fn batch_dequeue(
+        &mut self,
+        amount: usize,
+        cap: usize,
+    ) -> Option<(core::ops::Range<usize>, Option<core::ops::Range<usize>>)> {
+        #[cfg(debug_assertions)]
+        assert_eq!(self.cap, cap);
+        let amount = self.len(cap).min(amount);
+        assert!(amount <= self.len(cap));
+        let is_empty = self.len(cap) == 0;
+        if is_empty {
+            return None;
+        }
+        let start = self.head(cap);
+        self.prev_head = self.prev_head.ring_add(amount, cap);
+        let end = self.head(cap);
+        Some(if start < end {
+            (start..end, None)
+        } else {
+            ((start..cap + 1), Some(0..end))
+        })
     }
 }
 #[cfg(not(debug_assertions))]
@@ -159,6 +194,24 @@ impl Clear for BitQueue {
     }
 }
 
+pub type FixedVecQueue<T> = FixedQueue<Vec<MaybeUninit<T>>, T>;
+impl<T> FixedVecQueue<T> {
+    pub fn new_vec(capacity: usize) -> Self {
+        let buf_len = capacity + 1;
+        let mut buf = Vec::with_capacity(buf_len);
+        buf.extend((0..buf.capacity()).map(|_| MaybeUninit::uninit()));
+        Self::new(buf)
+    }
+}
+pub type FixedArrayQueue<T, const N: usize> = FixedQueue<[MaybeUninit<T>; N], T>;
+impl<T, const N: usize> FixedArrayQueue<T, N> {
+    /// Capacity is actually `N - 1`
+    pub fn new_array() -> Self {
+        let buf = [const { MaybeUninit::uninit() }; N];
+        Self::new(buf)
+    }
+}
+
 #[derive(Debug)]
 pub struct FixedQueue<L: ListMut<MaybeUninit<T>>, T> {
     buf: L,
@@ -191,11 +244,74 @@ where
         let index = self.pointer.enqueue(self.capacity());
         self.buf[index] = MaybeUninit::new(item);
     }
+    pub fn batch_enqueue(&mut self, items: &[T])
+    where
+        T: Copy,
+        L: AsSliceMut<MaybeUninit<T>>,
+    {
+        let Some(items_len) = NonZeroUsize::new(items.len()) else {
+            return;
+        };
+        let (a, b) = self.pointer.batch_enqueue(items_len, self.capacity());
+        let a_len = a.clone().len();
+        self.buf.as_slice_mut()[a].copy_from_slice(unsafe {
+            core::mem::transmute::<&[T], &[MaybeUninit<T>]>(&items[..a_len])
+        });
+        if let Some(b) = b {
+            self.buf.as_slice_mut()[b].copy_from_slice(unsafe {
+                core::mem::transmute::<&[T], &[MaybeUninit<T>]>(&items[a_len..])
+            });
+        }
+    }
     pub fn dequeue(&mut self) -> Option<T> {
         let index = self.pointer.dequeue(self.capacity())?;
         let value = &mut self.buf[index];
         let value = core::mem::replace(value, MaybeUninit::uninit());
         Some(unsafe { value.assume_init() })
+    }
+    /// Slower than [`Self::batch_dequeue()`]
+    pub fn batch_dequeue_iter(&mut self, amount: usize) -> impl Iterator<Item = T> + '_
+    where
+        T: Copy,
+        L: AsSlice<MaybeUninit<T>>,
+    {
+        self.batch_dequeue(amount).into_iter().flat_map(|(a, b)| {
+            a.iter()
+                .copied()
+                .chain(b.into_iter().flat_map(|b| b.iter().copied()))
+        })
+    }
+    pub fn batch_dequeue_extend<'a>(
+        &'a mut self,
+        amount: usize,
+        extender: &mut impl core::iter::Extend<&'a T>,
+    ) where
+        T: Copy + 'a,
+        L: AsSlice<MaybeUninit<T>>,
+    {
+        let Some((a, b)) = self.batch_dequeue(amount) else {
+            return;
+        };
+        extender.extend(a.iter());
+        if let Some(b) = b {
+            extender.extend(b.iter());
+        }
+    }
+    pub fn batch_dequeue(&mut self, amount: usize) -> Option<(&[T], Option<&[T]>)>
+    where
+        T: Copy,
+        L: AsSlice<MaybeUninit<T>>,
+    {
+        let (a, b) = self.pointer.batch_dequeue(amount, self.capacity())?;
+        let a = unsafe { core::mem::transmute::<&[MaybeUninit<T>], &[T]>(&self.buf.as_slice()[a]) };
+        let b = if let Some(b) = b {
+            Some(unsafe {
+                core::mem::transmute::<&[MaybeUninit<T>], &[T]>(&self.buf.as_slice()[b])
+            })
+        } else {
+            None
+        };
+        Some((a, b))
     }
     pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
         let head = self.pointer.head(self.capacity());
@@ -268,6 +384,27 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.dequeue().unwrap(), 3);
         assert!(q.is_empty());
+
+        for _ in 0..4 {
+            q.batch_enqueue(&[1, 2]);
+            assert_eq!(q.len(), 2);
+            assert_eq!(q.dequeue().unwrap(), 1);
+            assert_eq!(q.dequeue().unwrap(), 2);
+        }
+
+        for _ in 0..4 {
+            q.batch_enqueue(&[1, 2]);
+            let mut s: Vec<i32> = vec![];
+            s.extend(q.batch_dequeue_iter(3));
+            assert_eq!(s, [1, 2]);
+        }
+
+        for _ in 0..4 {
+            q.batch_enqueue(&[]);
+            let mut s: Vec<i32> = vec![];
+            s.extend(q.batch_dequeue_iter(3));
+            assert_eq!(s, []);
+        }
     }
     #[test]
     fn test_bit_queue() {
@@ -283,5 +420,91 @@ mod tests {
         assert!(q.dequeue().unwrap());
         assert!(q.dequeue().unwrap());
         assert!(q.dequeue().is_none());
+    }
+}
+
+#[cfg(feature = "nightly")]
+#[cfg(test)]
+mod benches {
+    use std::collections::VecDeque;
+
+    use test::{black_box, Bencher};
+
+    use super::*;
+
+    const CAPACITY: usize = 1 << 10;
+    const BATCH_SIZE: usize = CAPACITY / 2;
+    type Item = u8;
+
+    #[bench]
+    fn bench_vec_deque(bencher: &mut Bencher) {
+        let mut q: VecDeque<Item> = VecDeque::with_capacity(CAPACITY);
+        let b = batch_buf();
+        let mut recv = vec![];
+        bencher.iter(|| {
+            q.extend(&b);
+            recv.extend(q.drain(..));
+            black_box(&recv);
+            recv.clear();
+        });
+    }
+    #[bench]
+    fn bench_vec_deque_manual(bencher: &mut Bencher) {
+        let mut q: VecDeque<Item> = VecDeque::with_capacity(CAPACITY);
+        let b = batch_buf();
+        let mut recv = vec![];
+        bencher.iter(|| {
+            q.extend(&b);
+            let (a, b) = q.as_slices();
+            recv.extend(a.iter().copied().chain(b.iter().copied()));
+            q.drain(..);
+            assert!(!recv.is_empty());
+            black_box(&recv);
+            recv.clear();
+        });
+    }
+    #[bench]
+    fn bench_fixed_array_queue(bencher: &mut Bencher) {
+        const ARRAY_SIZE: usize = CAPACITY + 1;
+        let mut q = FixedArrayQueue::<Item, ARRAY_SIZE>::new_array();
+        let b = batch_buf();
+        let mut recv = vec![];
+        bencher.iter(|| {
+            q.batch_enqueue(&b);
+            recv.extend(q.batch_dequeue_iter(b.len()));
+            black_box(&recv);
+            recv.clear();
+        });
+    }
+    #[bench]
+    fn bench_fixed_array_queue_extend(bencher: &mut Bencher) {
+        const ARRAY_SIZE: usize = CAPACITY + 1;
+        let mut q = FixedArrayQueue::<Item, ARRAY_SIZE>::new_array();
+        let b = batch_buf();
+        let mut recv: Vec<Item> = vec![];
+        bencher.iter(|| {
+            q.batch_enqueue(&b);
+            q.batch_dequeue_extend(b.len(), &mut recv);
+            black_box(&recv);
+            recv.clear();
+        });
+    }
+    #[bench]
+    fn bench_fixed_vec_queue(bencher: &mut Bencher) {
+        let mut q = FixedVecQueue::<Item>::new_vec(CAPACITY);
+        let b = batch_buf();
+        let mut recv = vec![];
+        bencher.iter(|| {
+            q.batch_enqueue(&b);
+            recv.extend(q.batch_dequeue_iter(b.len()));
+            black_box(&recv);
+            recv.clear();
+        });
+    }
+
+    fn batch_buf() -> Vec<Item> {
+        let mut b = vec![];
+        b.extend((0..BATCH_SIZE).map(|i| i as Item));
+        b
     }
 }
