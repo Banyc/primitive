@@ -12,28 +12,49 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct FixedQueuePointer {
+    #[cfg(debug_assertions)]
+    cap: usize,
     prev_head: usize,
     next_tail: usize,
 }
 impl FixedQueuePointer {
     #[must_use]
-    pub const fn new() -> Self {
+    pub const fn new(#[cfg(debug_assertions)] cap: usize) -> Self {
         Self {
+            #[cfg(debug_assertions)]
+            cap,
             prev_head: 0,
             next_tail: 1,
         }
     }
+    #[cfg(debug_assertions)]
+    #[must_use]
+    pub fn cap(&self) -> usize {
+        self.cap
+    }
     #[must_use]
     pub fn head(&self, cap: usize) -> usize {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(self.cap, cap);
+        }
         self.prev_head.ring_add(1, cap)
     }
     #[must_use]
     pub fn len(&self, cap: usize) -> usize {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(self.cap, cap);
+        }
         let dist = self.next_tail.ring_sub(self.prev_head, cap);
         dist.checked_sub(1).unwrap_or(cap)
     }
     #[must_use]
     pub fn enqueue(&mut self, cap: usize) -> usize {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(self.cap, cap);
+        }
         if self.prev_head == self.next_tail {
             panic!("out of buffer space");
         }
@@ -43,6 +64,10 @@ impl FixedQueuePointer {
     }
     #[must_use]
     pub fn dequeue(&mut self, cap: usize) -> Option<usize> {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(self.cap, cap);
+        }
         let is_empty = self.len(cap) == 0;
         if is_empty {
             return None;
@@ -52,6 +77,7 @@ impl FixedQueuePointer {
         Some(index)
     }
 }
+#[cfg(not(debug_assertions))]
 impl Default for FixedQueuePointer {
     fn default() -> Self {
         Self::new()
@@ -67,9 +93,13 @@ impl BitQueue {
     #[must_use]
     pub fn new(len: usize) -> Self {
         let set_len = len + 1;
+        let set = BitSet::new(set_len);
         Self {
-            pointer: FixedQueuePointer::new(),
-            set: BitSet::new(set_len),
+            pointer: FixedQueuePointer::new(
+                #[cfg(debug_assertions)]
+                set.capacity().checked_sub(1).unwrap(),
+            ),
+            set,
         }
     }
     pub fn enqueue(&mut self, value: bool) {
@@ -117,7 +147,14 @@ impl Len for BitQueue {
 }
 impl Clear for BitQueue {
     fn clear(&mut self) {
-        self.pointer = FixedQueuePointer::new();
+        #[cfg(not(debug_assertions))]
+        {
+            self.pointer = FixedQueuePointer::new();
+        };
+        #[cfg(debug_assertions)]
+        {
+            self.pointer = FixedQueuePointer::new(self.pointer.cap());
+        };
         self.set.clear();
     }
 }
@@ -135,9 +172,18 @@ where
     #[must_use]
     pub fn new(buf: L) -> Self {
         assert!(!buf.is_empty());
+        let pointer;
+        #[cfg(debug_assertions)]
+        {
+            pointer = FixedQueuePointer::new(buf.len() - 1);
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            pointer = FixedQueuePointer::new();
+        }
         Self {
             buf,
-            pointer: FixedQueuePointer::new(),
+            pointer,
             item: PhantomData,
         }
     }
