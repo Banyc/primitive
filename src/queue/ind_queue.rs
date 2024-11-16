@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use crate::{ops::len::Len, Clear};
 
 #[derive(Debug, Clone)]
-pub struct IndexedQueue<T> {
+pub struct IndQueue<T> {
     queue: VecDeque<Option<T>>,
     start: u64,
     count: usize,
 }
-impl<T> IndexedQueue<T> {
+impl<T> IndQueue<T> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -106,17 +106,17 @@ impl<T> IndexedQueue<T> {
         let _ = self.back_mut();
     }
 }
-impl<T> Default for IndexedQueue<T> {
+impl<T> Default for IndQueue<T> {
     fn default() -> Self {
         Self::new()
     }
 }
-impl<T> Len for IndexedQueue<T> {
+impl<T> Len for IndQueue<T> {
     fn len(&self) -> usize {
         self.count
     }
 }
-impl<T> Clear for IndexedQueue<T> {
+impl<T> Clear for IndQueue<T> {
     fn clear(&mut self) {
         let queue_len = self.queue.len();
         let queue_len = u64::try_from(queue_len).unwrap();
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_enqueue_dequeue() {
-        let mut queue = IndexedQueue::new();
+        let mut queue = IndQueue::new();
         let index_0 = queue.enqueue(0);
         {
             assert_eq!(
@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let mut queue = IndexedQueue::new();
+        let mut queue = IndQueue::new();
         let index_0 = queue.enqueue(0);
         let index_1 = queue.enqueue(1);
         let index_2 = queue.enqueue(2);

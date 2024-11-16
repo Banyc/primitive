@@ -1,6 +1,6 @@
 use std::sync::{Arc, Condvar, Mutex};
 
-use crate::queue::indexed_queue::{IndexedQueue, QueueIndex};
+use crate::queue::ind_queue::{IndQueue, QueueIndex};
 
 #[derive(Debug)]
 pub struct Notify {
@@ -8,14 +8,14 @@ pub struct Notify {
 }
 #[derive(Debug)]
 struct CriticalNotify {
-    pub wait_queue: IndexedQueue<Arc<WaitToken>>,
+    pub wait_queue: IndQueue<Arc<WaitToken>>,
     pub reused_wait_tokens: Vec<Arc<WaitToken>>,
 }
 impl Notify {
     #[must_use]
     pub const fn new() -> Self {
         let state = CriticalNotify {
-            wait_queue: IndexedQueue::new(),
+            wait_queue: IndQueue::new(),
             reused_wait_tokens: vec![],
         };
         Self {
