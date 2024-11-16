@@ -47,6 +47,12 @@ impl CapQueuePointer {
         dist.checked_sub(1).unwrap_or(cap)
     }
     #[must_use]
+    fn is_empty(&self, cap: usize) -> bool {
+        #[cfg(debug_assertions)]
+        assert_eq!(self.cap, cap);
+        self.len(cap) == 0
+    }
+    #[must_use]
     pub fn enqueue(&mut self, cap: usize) -> usize {
         #[cfg(debug_assertions)]
         assert_eq!(self.cap, cap);
@@ -80,8 +86,7 @@ impl CapQueuePointer {
     pub fn dequeue(&mut self, cap: usize) -> Option<usize> {
         #[cfg(debug_assertions)]
         assert_eq!(self.cap, cap);
-        let is_empty = self.len(cap) == 0;
-        if is_empty {
+        if self.is_empty(cap) {
             return None;
         }
         let index = self.head(cap);
@@ -98,13 +103,30 @@ impl CapQueuePointer {
         assert_eq!(self.cap, cap);
         let amount = self.len(cap).min(amount);
         assert!(amount <= self.len(cap));
-        let is_empty = self.len(cap) == 0;
-        if is_empty {
+        if self.is_empty(cap) {
             return None;
         }
         let start = self.head(cap);
         self.prev_head = self.prev_head.ring_add(amount, cap);
         let end = self.head(cap);
+        Some(if start < end {
+            (start..end, None)
+        } else {
+            ((start..cap + 1), Some(0..end))
+        })
+    }
+    #[must_use]
+    pub fn as_slices(
+        &self,
+        cap: usize,
+    ) -> Option<(core::ops::Range<usize>, Option<core::ops::Range<usize>>)> {
+        #[cfg(debug_assertions)]
+        assert_eq!(self.cap, cap);
+        if self.is_empty(cap) {
+            return None;
+        }
+        let start = self.head(cap);
+        let end = self.next_tail;
         Some(if start < end {
             (start..end, None)
         } else {
@@ -303,15 +325,28 @@ where
         L: AsSlice<MaybeUninit<T>>,
     {
         let (a, b) = self.pointer.batch_dequeue(amount, self.capacity())?;
+        Some(self.slices(a, b))
+    }
+    pub fn as_slices(&self) -> Option<(&[T], Option<&[T]>)>
+    where
+        L: AsSlice<MaybeUninit<T>>,
+    {
+        let (a, b) = self.pointer.as_slices(self.capacity())?;
+        Some(self.slices(a, b))
+    }
+    fn slices(
+        &self,
+        a: core::ops::Range<usize>,
+        b: Option<core::ops::Range<usize>>,
+    ) -> (&[T], Option<&[T]>)
+    where
+        L: AsSlice<MaybeUninit<T>>,
+    {
         let a = unsafe { core::mem::transmute::<&[MaybeUninit<T>], &[T]>(&self.buf.as_slice()[a]) };
-        let b = if let Some(b) = b {
-            Some(unsafe {
-                core::mem::transmute::<&[MaybeUninit<T>], &[T]>(&self.buf.as_slice()[b])
-            })
-        } else {
-            None
-        };
-        Some((a, b))
+        let b = b.map(|b| unsafe {
+            core::mem::transmute::<&[MaybeUninit<T>], &[T]>(&self.buf.as_slice()[b])
+        });
+        (a, b)
     }
     pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
         let head = self.pointer.head(self.capacity());
@@ -394,6 +429,15 @@ mod tests {
 
         for _ in 0..4 {
             q.batch_enqueue(&[1, 2]);
+            {
+                let (a, b) = q.as_slices().unwrap();
+                let mut s: Vec<i32> = vec![];
+                s.extend(a);
+                if let Some(b) = b {
+                    s.extend(b);
+                }
+                assert_eq!(s, [1, 2]);
+            }
             let mut s: Vec<i32> = vec![];
             s.extend(q.batch_dequeue_iter(3));
             assert_eq!(s, [1, 2]);
