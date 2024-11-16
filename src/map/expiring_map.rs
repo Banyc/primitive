@@ -1,8 +1,7 @@
-use core::{borrow::Borrow, cmp::Ordering, hash::Hash, time::Duration};
-use std::{
-    collections::{BinaryHeap, HashMap},
-    time::Instant,
-};
+use core::{borrow::Borrow, hash::Hash, time::Duration};
+use std::{collections::HashMap, time::Instant};
+
+use crate::{ops::ord_entry::OrdEntry, queue::ord_queue::OrdQueue};
 
 use super::{
     hash_map::{HashGetMut, HashRemove},
@@ -10,38 +9,16 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-struct HeapValue<K> {
-    instant: Instant,
-    key: K,
-}
-impl<K> PartialOrd for HeapValue<K> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl<K> Ord for HeapValue<K> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.instant.cmp(&other.instant).reverse()
-    }
-}
-impl<K> PartialEq for HeapValue<K> {
-    fn eq(&self, other: &Self) -> bool {
-        self.instant.eq(&other.instant)
-    }
-}
-impl<K> Eq for HeapValue<K> {}
-
-#[derive(Debug, Clone)]
 pub struct ExpiringHashMap<K, V> {
     hash_map: HashMap<K, (Instant, V)>,
-    heap: BinaryHeap<HeapValue<K>>,
+    ord_queue: OrdQueue<OrdEntry<Instant, K>>,
     duration: Duration,
 }
 impl<K, V> ExpiringHashMap<K, V> {
     pub fn new(duration: Duration) -> Self {
         Self {
             hash_map: HashMap::new(),
-            heap: BinaryHeap::new(),
+            ord_queue: OrdQueue::new(),
             duration,
         }
     }
@@ -53,7 +30,10 @@ impl<K: Eq + Hash + Clone, V> MapInsert<K, V> for ExpiringHashMap<K, V> {
         match self.hash_map.insert(key.clone(), (now, value)) {
             Some(prev) => Some(prev.1),
             None => {
-                self.heap.push(HeapValue { instant: now, key });
+                self.ord_queue.insert(OrdEntry {
+                    key: now,
+                    value: key,
+                });
                 None
             }
         }
@@ -64,19 +44,23 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
         let Some(deadline) = Instant::now().checked_sub(self.duration) else {
             return;
         };
-        while let Some(HeapValue { instant, .. }) = self.heap.peek() {
+        while let Some(OrdEntry { key: instant, .. }) = self.ord_queue.peek() {
             if *instant > deadline {
                 return;
             }
 
-            let key = self.heap.pop().expect("We know it is not empty.").key;
+            let key = self
+                .ord_queue
+                .pop()
+                .expect("We know it is not empty.")
+                .value;
 
             let real_instant = self.hash_map[&key].0;
 
             if real_instant > deadline {
-                self.heap.push(HeapValue {
-                    instant: real_instant,
-                    key,
+                self.ord_queue.insert(OrdEntry {
+                    key: real_instant,
+                    value: key,
                 });
             } else {
                 self.hash_map.remove(&key);
