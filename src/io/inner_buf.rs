@@ -1,25 +1,25 @@
-use std::collections::VecDeque;
-
 use thiserror::Error;
 
+use crate::{ops::len::Len, queue::grow_queue::GrowQueue};
+
 /// [I/O-Free (Sans-I/O)](https://sans-io.readthedocs.io/how-to-sans-io.html)
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct InnerBuf {
-    buf: VecDeque<u8>,
+    buf: GrowQueue<u8>,
 }
 impl InnerBuf {
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            buf: VecDeque::new(),
+            buf: GrowQueue::new(),
         }
     }
-    pub fn extend(&mut self, bytes: impl Iterator<Item = u8>) {
-        self.buf.extend(bytes);
+    pub fn batch_enqueue(&mut self, bytes: &[u8]) {
+        self.buf.batch_enqueue(bytes);
     }
     #[must_use]
-    pub fn available(&self, additional: &[u8]) -> usize {
-        self.buf.len() + additional.len()
+    pub fn available(&self, additional: usize) -> usize {
+        self.buf.len() + additional
     }
     pub fn read_array<const N: usize>(
         &mut self,
@@ -38,10 +38,11 @@ impl InnerBuf {
         Ok(array)
     }
     pub fn copy_exact(&mut self, buf: &mut [u8], additional: &[u8]) -> Result<(), NotEnoughBytes> {
-        if self.available(additional) < buf.len() {
+        if self.available(additional.len()) < buf.len() {
             return Err(NotEnoughBytes);
         }
-        let (a, b) = self.buf.as_slices();
+        let (a, b) = self.buf.as_slices().unwrap_or((&[], None));
+        let b = b.unwrap_or(&[]);
         let mut remaining = buf.len();
         let a_len = a.len().min(remaining);
         remaining -= a_len;
@@ -60,11 +61,11 @@ impl InnerBuf {
     ///
     /// `n` is more than `self.available(additional)`
     pub fn advance(&mut self, n: usize, additional: &mut &[u8]) {
-        assert!(n <= self.available(additional));
+        assert!(n <= self.available(additional.len()));
         let mut remaining = n;
         let buf_len = self.buf.len().min(remaining);
         remaining -= buf_len;
-        self.buf.drain(..buf_len);
+        self.buf.batch_dequeue(buf_len);
         let slice_len = additional.len().min(remaining);
         *additional = &additional[slice_len..];
     }
@@ -122,7 +123,7 @@ pub mod tests {
     fn test_inner_buf() {
         let mut buf = InnerBuf::new();
         let a: [u8; LENGTH] = (0..LENGTH as u8).collect::<Vec<u8>>().try_into().unwrap();
-        buf.extend(a.iter().copied());
+        buf.batch_enqueue(&a);
 
         let mut timer = Timer::new();
         let mut watch = Stopwatch::default();

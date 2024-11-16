@@ -1,4 +1,5 @@
 pub mod cap_queue;
+pub mod grow_queue;
 pub mod ind_queue;
 pub mod ord_queue;
 pub mod req_queue;

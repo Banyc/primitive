@@ -234,7 +234,7 @@ impl<T, const N: usize> CapArrayQueue<T, N> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CapQueue<L: ListMut<MaybeUninit<T>>, T> {
     buf: L,
     item: PhantomData<T>,
@@ -373,20 +373,6 @@ where
         self.pointer.len(self.capacity())
     }
 }
-impl<L, T> Clone for CapQueue<L, T>
-where
-    L: ListMut<MaybeUninit<T>> + Clone,
-    T: Clone,
-{
-    fn clone(&self) -> Self {
-        let buf = self.buf.clone();
-        let mut new = Self::new(buf);
-        for item in self.iter() {
-            new.enqueue(item.clone());
-        }
-        new
-    }
-}
 impl<L, T> Drop for CapQueue<L, T>
 where
     L: ListMut<MaybeUninit<T>>,
@@ -404,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_cap_queue() {
-        let mut q = CapQueue::new([MaybeUninit::uninit(); 3]);
+        let mut q = CapArrayQueue::<_, 3>::new_array();
         assert!(q.is_empty());
         q.enqueue(1);
         assert_eq!(q.len(), 1);
