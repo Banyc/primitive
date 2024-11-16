@@ -13,7 +13,3 @@ pub mod queue;
 pub mod set;
 pub mod sync;
 pub mod time;
-
-pub trait Clear {
-    fn clear(&mut self);
-}

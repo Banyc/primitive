@@ -1,7 +1,7 @@
 use core::time::Duration;
 use std::time::Instant;
 
-use crate::Clear;
+use crate::ops::clear::Clear;
 
 #[derive(Debug, Clone)]
 pub struct Timer {

@@ -1,4 +1,4 @@
-use crate::{ops::len::Len, Clear};
+use crate::ops::{clear::Clear, len::Len};
 
 #[derive(Debug, Clone)]
 pub struct DenseFreeList<T> {

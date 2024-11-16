@@ -1,10 +1,8 @@
-use crate::{
-    ops::{
-        len::{Capacity, Len},
-        non_max::{NonMax, OptNonMax},
-        opt::Opt,
-    },
-    Clear,
+use crate::ops::{
+    clear::Clear,
+    len::{Capacity, Len},
+    non_max::{NonMax, OptNonMax},
+    opt::Opt,
 };
 
 #[derive(Debug, Clone)]

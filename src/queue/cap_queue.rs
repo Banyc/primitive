@@ -2,13 +2,13 @@ use core::{marker::PhantomData, mem::MaybeUninit, num::NonZeroUsize};
 
 use crate::{
     ops::{
+        clear::Clear,
         len::{Capacity, Len, LenExt},
         list::ListMut,
         ring::RingSpace,
         slice::{AsSlice, AsSliceMut},
     },
     set::bit_set::BitSet,
-    Clear,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -371,6 +371,16 @@ where
 {
     fn len(&self) -> usize {
         self.pointer.len(self.capacity())
+    }
+}
+impl<L, T> Clear for CapQueue<L, T>
+where
+    L: ListMut<MaybeUninit<T>>,
+{
+    fn clear(&mut self) {
+        while let Some(item) = self.dequeue() {
+            drop(item);
+        }
     }
 }
 impl<L, T> Drop for CapQueue<L, T>

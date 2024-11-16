@@ -6,7 +6,7 @@ use core::{
 };
 use std::sync::Arc;
 
-use crate::{ops::len::Len, Clear};
+use crate::ops::{clear::Clear, len::Len};
 
 #[derive(Debug)]
 pub struct StableVec<T, const CHUNK_SIZE: usize> {

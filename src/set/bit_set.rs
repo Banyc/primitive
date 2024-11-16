@@ -1,4 +1,4 @@
-use crate::{ops::len::Len, Clear};
+use crate::ops::{clear::Clear, len::Len};
 
 const BITS_PER_BYTE: usize = 8;
 const USIZE_BITS: usize = core::mem::size_of::<usize>() * BITS_PER_BYTE;

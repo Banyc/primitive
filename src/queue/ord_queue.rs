@@ -1,7 +1,7 @@
 use core::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
 
-use crate::{ops::len::Len, ops::opt_cmp::MinNoneOptCmp, Clear};
+use crate::ops::{clear::Clear, len::Len, opt_cmp::MinNoneOptCmp};
 
 #[derive(Debug, Clone)]
 pub struct OrdQueue<T> {

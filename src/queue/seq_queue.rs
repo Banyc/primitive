@@ -5,11 +5,11 @@ use num_traits::{CheckedAdd, CheckedSub, NumCast, One};
 
 use crate::{
     ops::{
+        clear::Clear,
         len::{Capacity, Full, Len},
         ord_entry::OrdEntry,
     },
     queue::ord_queue::OrdQueue,
-    Clear,
 };
 
 use super::cap_queue::BitQueue;

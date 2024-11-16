@@ -3,9 +3,9 @@ use std::{collections::VecDeque, time::Instant};
 
 use thiserror::Error;
 
-use crate::{
-    ops::len::{Capacity, Full, Len},
-    Clear,
+use crate::ops::{
+    clear::Clear,
+    len::{Capacity, Full, Len},
 };
 
 /// The lower the priority number, the higher the priority

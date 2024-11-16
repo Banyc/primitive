@@ -13,7 +13,7 @@ mod benches {
             hash_map::{HashGet, HashRemove},
             MapInsert,
         },
-        Clear,
+        ops::clear::Clear,
     };
 
     const N: usize = 2 << 16;

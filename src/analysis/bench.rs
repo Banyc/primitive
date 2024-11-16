@@ -4,9 +4,11 @@ use std::collections::LinkedList;
 use num_traits::Float;
 
 use crate::{
-    ops::float::{NonNegR, PosR, UnitR},
+    ops::{
+        clear::Clear,
+        float::{NonNegR, PosR, UnitR},
+    },
     time::stopwatch::ElapsedStopwatch,
-    Clear,
 };
 
 #[derive(Debug)]

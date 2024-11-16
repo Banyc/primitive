@@ -1,4 +1,7 @@
-use crate::ops::len::{Capacity, Full, Len};
+use crate::ops::{
+    clear::Clear,
+    len::{Capacity, Full, Len},
+};
 
 use super::cap_queue::CapVecQueue;
 
@@ -121,6 +124,14 @@ impl<T> Len for GrowQueue<T> {
             return 0;
         };
         vec_queue.len()
+    }
+}
+impl<T> Clear for GrowQueue<T> {
+    fn clear(&mut self) {
+        let Some(vec_queue) = &mut self.vec_queue else {
+            return;
+        };
+        vec_queue.clear();
     }
 }
 impl<T: Copy> Clone for GrowQueue<T> {

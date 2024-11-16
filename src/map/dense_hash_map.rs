@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{ops::len::Len, Clear};
+use crate::ops::{clear::Clear, len::Len};
 
 use super::{
     free_list::{DenseFreeList, FreeList},
