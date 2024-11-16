@@ -7,6 +7,7 @@ pub mod mut_cell;
 pub mod non_max;
 pub mod opt;
 pub mod opt_cmp;
+pub mod ord_entry;
 pub mod range;
 pub mod ring;
 pub mod slice;

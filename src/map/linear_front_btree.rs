@@ -5,6 +5,7 @@ use crate::{
     arena::stack::{Stack, StaticRevStack},
     ops::{
         len::{Full, Len, LenExt},
+        ord_entry::OrdEntry,
         slice::{AsSlice, AsSliceMut, LinearSearch},
     },
 };
@@ -208,37 +209,6 @@ impl<K, V, const N: usize> Len for LinearFrontBTreeMap<K, V, N> {
 impl<K, V, const N: usize> Default for LinearFrontBTreeMap<K, V, N> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct OrdEntry<K, V> {
-    pub key: K,
-    pub value: V,
-}
-impl<K, V> PartialEq for OrdEntry<K, V>
-where
-    K: Eq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.key == other.key
-    }
-}
-impl<K, V> Eq for OrdEntry<K, V> where K: Eq {}
-impl<K, V> Ord for OrdEntry<K, V>
-where
-    K: Ord,
-{
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.key.cmp(&other.key)
-    }
-}
-impl<K, V> PartialOrd for OrdEntry<K, V>
-where
-    K: Ord,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 

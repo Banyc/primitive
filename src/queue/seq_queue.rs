@@ -4,8 +4,10 @@ use std::collections::{BTreeMap, HashSet};
 use num_traits::{CheckedAdd, CheckedSub, NumCast, One};
 
 use crate::{
-    map::MapInsert,
-    ops::len::{Capacity, Full, Len},
+    ops::{
+        len::{Capacity, Full, Len},
+        ord_entry::OrdEntry,
+    },
     queue::ord_queue::OrdQueue,
     Clear,
 };
@@ -14,7 +16,7 @@ use super::cap_queue::BitQueue;
 
 #[derive(Debug, Clone)]
 pub struct SeqQueue<K, V> {
-    queue: OrdQueue<K, V>,
+    queue: OrdQueue<OrdEntry<K, V>>,
     next: Option<K>,
     /// There could be `K` in [`Self::queue`] that is not covered by [`Self::keys`]
     keys: Option<SeqQueueKeys<K>>,
@@ -58,16 +60,17 @@ where
 {
     pub fn set_next(&mut self, next: K, mut stale: impl FnMut((K, V))) {
         loop {
-            let Some((head, _)) = self.queue.peek() else {
+            let Some(entry) = self.queue.peek() else {
                 break;
             };
+            let (head, _) = entry.flatten();
             if next <= *head {
                 break;
             }
             if let Some(SeqQueueKeys { win: _, sparse }) = &mut self.keys {
                 assert!(sparse.remove(head));
             }
-            stale(self.queue.pop().unwrap());
+            stale(self.queue.pop().unwrap().into_flatten());
         }
         if let Some(SeqQueueKeys { win, sparse }) = &mut self.keys {
             reset_bit_win(win);
@@ -89,7 +92,7 @@ where
     #[must_use]
     pub fn peek(&self) -> Option<(&K, &V)> {
         let next = self.next()?;
-        let (k, v) = self.queue.peek()?;
+        let (k, v) = self.queue.peek()?.flatten();
         if k != next {
             return None;
         }
@@ -98,7 +101,7 @@ where
     #[must_use]
     pub fn pop(&mut self, waste: impl FnMut((K, V))) -> Option<(K, V)> {
         let _ = self.peek()?;
-        let (k, v) = self.queue.pop().unwrap();
+        let (k, v) = self.queue.pop().unwrap().into_flatten();
         if let Some(SeqQueueKeys { win, sparse: _ }) = &mut self.keys {
             win.dequeue().unwrap();
             win.enqueue(false);
@@ -111,11 +114,11 @@ where
         let Some(next) = self.next.as_ref() else {
             return;
         };
-        while let Some((k, _)) = self.queue.peek() {
-            if k != next {
+        while let Some(entry) = self.queue.peek() {
+            if &entry.key != next {
                 break;
             }
-            waste(self.queue.pop().unwrap());
+            waste(self.queue.pop().unwrap().into_flatten());
         }
     }
     #[must_use]
@@ -194,7 +197,8 @@ where
                 return;
             }
         }
-        self.queue.insert(key, value);
+        let entry = OrdEntry { key, value };
+        self.queue.insert(entry);
     }
     pub fn insert_pop_all<O>(
         &mut self,
