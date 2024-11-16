@@ -10,16 +10,16 @@ use crate::{ops::ring::RingSpace, sync::mutex::SpinMutex};
 
 use super::stack::{DynStack, Stack};
 
-pub fn buf_pool<T>(capacity: Option<usize>) -> ObjectPool<Vec<T>> {
-    ObjectPool::new(capacity, Vec::new, |b| b.clear())
+pub fn buf_pool<T>(capacity: Option<usize>) -> ObjPool<Vec<T>> {
+    ObjPool::new(capacity, Vec::new, |b| b.clear())
 }
 #[derive(Debug)]
-pub struct ObjectPool<T> {
+pub struct ObjPool<T> {
     stack: DynStack<T>,
     alloc: fn() -> T,
     reset: fn(&mut T),
 }
-impl<T> ObjectPool<T> {
+impl<T> ObjPool<T> {
     #[must_use]
     pub fn new(capacity: Option<usize>, alloc: fn() -> T, reset: fn(&mut T)) -> Self {
         Self {
@@ -38,18 +38,18 @@ impl<T> ObjectPool<T> {
     }
 }
 
-pub fn arc_buf_pool<T>(capacity: Option<usize>, shards: NonZeroUsize) -> ArcObjectPool<Vec<T>> {
-    ArcObjectPool::new(capacity, shards, Vec::new, |b| b.clear())
+pub fn arc_buf_pool<T>(capacity: Option<usize>, shards: NonZeroUsize) -> ArcObjPool<Vec<T>> {
+    ArcObjPool::new(capacity, shards, Vec::new, |b| b.clear())
 }
 type ArcStacks<T> = Arc<[SpinMutex<DynStack<T>>]>;
 #[derive(Debug)]
-pub struct ArcObjectPool<T> {
+pub struct ArcObjPool<T> {
     stacks: ArcStacks<T>,
     next: AtomicUsize,
     alloc: fn() -> T,
     reset: fn(&mut T),
 }
-impl<T> ArcObjectPool<T> {
+impl<T> ArcObjPool<T> {
     #[must_use]
     pub fn new(
         capacity: Option<usize>,
@@ -76,16 +76,16 @@ impl<T> ArcObjectPool<T> {
             .unwrap_or_else(|| (self.alloc)())
     }
     #[must_use]
-    pub fn take_scoped(&self) -> ObjectScoped<T> {
-        ObjectScoped::new(self.recycler(), self.take())
+    pub fn take_scoped(&self) -> ObjScoped<T> {
+        ObjScoped::new(self.recycler(), self.take())
     }
     pub fn put(&self, mut obj: T) {
         (self.reset)(&mut obj);
         self.stacks[self.shard_incr()].lock().push(obj);
     }
     #[must_use]
-    pub fn recycler(&self) -> ObjectRecycler<T> {
-        ObjectRecycler {
+    pub fn recycler(&self) -> ObjRecycler<T> {
+        ObjRecycler {
             stacks: Arc::clone(&self.stacks),
             next: self.shard(),
             reset: self.reset,
@@ -112,12 +112,12 @@ impl<T> ArcObjectPool<T> {
     }
 }
 #[derive(Debug)]
-pub struct ObjectRecycler<T> {
+pub struct ObjRecycler<T> {
     stacks: ArcStacks<T>,
     next: usize,
     reset: fn(&mut T),
 }
-impl<T> ObjectRecycler<T> {
+impl<T> ObjRecycler<T> {
     pub fn put(&mut self, mut obj: T) {
         let shard = self.next;
         if 1 < self.stacks.len() {
@@ -127,7 +127,7 @@ impl<T> ObjectRecycler<T> {
         self.stacks[shard].lock().push(obj);
     }
 }
-impl<T> Clone for ObjectRecycler<T> {
+impl<T> Clone for ObjRecycler<T> {
     fn clone(&self) -> Self {
         Self {
             stacks: Arc::clone(&self.stacks),
@@ -138,30 +138,30 @@ impl<T> Clone for ObjectRecycler<T> {
 }
 
 #[derive(Debug)]
-pub struct ObjectScoped<T> {
-    recycler: ObjectRecycler<T>,
+pub struct ObjScoped<T> {
+    recycler: ObjRecycler<T>,
     obj: MaybeUninit<T>,
 }
-impl<T> ObjectScoped<T> {
-    pub const fn new(recycler: ObjectRecycler<T>, obj: T) -> Self {
+impl<T> ObjScoped<T> {
+    pub const fn new(recycler: ObjRecycler<T>, obj: T) -> Self {
         Self {
             recycler,
             obj: MaybeUninit::new(obj),
         }
     }
 }
-impl<T> Deref for ObjectScoped<T> {
+impl<T> Deref for ObjScoped<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         unsafe { self.obj.assume_init_ref() }
     }
 }
-impl<T> DerefMut for ObjectScoped<T> {
+impl<T> DerefMut for ObjScoped<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { self.obj.assume_init_mut() }
     }
 }
-impl<T> Drop for ObjectScoped<T> {
+impl<T> Drop for ObjScoped<T> {
     fn drop(&mut self) {
         let obj = core::mem::replace(&mut self.obj, MaybeUninit::uninit());
         let obj = unsafe { obj.assume_init() };
