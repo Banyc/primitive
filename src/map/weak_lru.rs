@@ -7,14 +7,14 @@ use std::{
 use crate::ops::{opt_cmp::MinNoneOptCmp, ring::RingSpace};
 
 use super::{
-    fixed_map::{FixedHashMap, GetOrInsert},
+    cap_map::{CapHashMap, GetOrInsert},
     hash_map::{HashGet, HashGetMut},
     MapInsert,
 };
 
 #[derive(Debug, Clone)]
 pub struct WeakLru<K, V, const N: usize, H = RandomState> {
-    keys: FixedHashMap<K, usize, H>,
+    keys: CapHashMap<K, usize, H>,
     next_evict: usize,
     values: [Option<Entry<V>>; N],
 }
@@ -40,7 +40,7 @@ impl<K, V, const N: usize, H> WeakLru<K, V, N, H> {
         let assoc_ways = NonZeroUsize::new(Self::KEYS_ASSOC_WAYS).unwrap();
         let values = [const { None }; N];
         Self {
-            keys: FixedHashMap::with_hasher(direct_sets, assoc_ways, hasher),
+            keys: CapHashMap::with_hasher(direct_sets, assoc_ways, hasher),
             values,
             next_evict: 0,
         }

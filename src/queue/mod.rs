@@ -1,4 +1,4 @@
-pub mod fixed_queue;
+pub mod cap_queue;
 pub mod indexed_queue;
 pub mod ord_queue;
 pub mod req_queue;

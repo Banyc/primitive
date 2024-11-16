@@ -13,14 +13,14 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub struct FixedHashMap<K, V, H = RandomState> {
+pub struct CapHashMap<K, V, H = RandomState> {
     entries: Vec<Option<(K, V)>>,
     direct_sets: NonZeroUsize,
     assoc_ways: NonZeroUsize,
     next_way_index: usize,
     hash_builder: H,
 }
-impl<K, V, H> FixedHashMap<K, V, H> {
+impl<K, V, H> CapHashMap<K, V, H> {
     #[must_use]
     pub fn with_hasher(direct_sets: NonZeroUsize, assoc_ways: NonZeroUsize, hasher: H) -> Self {
         Self {
@@ -34,13 +34,13 @@ impl<K, V, H> FixedHashMap<K, V, H> {
         }
     }
 }
-impl<K, V> FixedHashMap<K, V, RandomState> {
+impl<K, V> CapHashMap<K, V, RandomState> {
     #[must_use]
     pub fn new(direct_sets: NonZeroUsize, assoc_ways: NonZeroUsize) -> Self {
         Self::with_hasher(direct_sets, assoc_ways, RandomState::new())
     }
 }
-impl<K, V, H> FixedHashMap<K, V, H>
+impl<K, V, H> CapHashMap<K, V, H>
 where
     K: Eq + Hash,
     H: BuildHasher,
@@ -162,7 +162,7 @@ pub enum GetOrInsert<'a, K, V> {
     Get(&'a V),
     Insert((usize, Option<(K, V)>)),
 }
-impl<K, V, H> HashGet<K, V> for FixedHashMap<K, V, H>
+impl<K, V, H> HashGet<K, V> for CapHashMap<K, V, H>
 where
     K: Eq + Hash,
     H: BuildHasher,
@@ -177,7 +177,7 @@ where
         Some(v)
     }
 }
-impl<K, V, H> HashGetMut<K, V> for FixedHashMap<K, V, H>
+impl<K, V, H> HashGetMut<K, V> for CapHashMap<K, V, H>
 where
     K: Eq + Hash,
     H: BuildHasher,
@@ -192,7 +192,7 @@ where
         Some(v)
     }
 }
-impl<K, V, H> HashRemove<K, V> for FixedHashMap<K, V, H>
+impl<K, V, H> HashRemove<K, V> for CapHashMap<K, V, H>
 where
     K: Eq + Hash,
     H: BuildHasher,
@@ -206,7 +206,7 @@ where
         self.entries[index].take().map(|(_, v)| v)
     }
 }
-impl<K, V, H> MapInsert<K, V> for FixedHashMap<K, V, H>
+impl<K, V, H> MapInsert<K, V> for CapHashMap<K, V, H>
 where
     K: Eq + Hash,
     H: BuildHasher,
@@ -223,12 +223,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_fixed_map() {
+    fn test_cap_map() {
         const N: usize = 1 << 10;
 
         let direct_sets = NonZeroUsize::new(4).unwrap();
         let assoc_ways = NonZeroUsize::new(1).unwrap();
-        let mut map = FixedHashMap::new(direct_sets, assoc_ways);
+        let mut map = CapHashMap::new(direct_sets, assoc_ways);
         for i in 0..N {
             map.insert_2(i, |_| i);
             assert_eq!(*map.get_mut(&i).unwrap(), i);
@@ -237,7 +237,7 @@ mod tests {
 
         let direct_sets = NonZeroUsize::new(5).unwrap();
         let assoc_ways = NonZeroUsize::new(2).unwrap();
-        let mut map = FixedHashMap::new(direct_sets, assoc_ways);
+        let mut map = CapHashMap::new(direct_sets, assoc_ways);
         for i in 0..N {
             map.insert_2(i, |_| i);
             assert_eq!(*map.get_mut(&i).unwrap(), i);
@@ -316,8 +316,8 @@ mod benches {
 
     #[bench]
     fn bench_fixed_map(bencher: &mut Bencher) {
-        let mut map: FixedHashMap<usize, RepeatedData<u8, DATA_SIZE>> =
-            FixedHashMap::new(DIRECT_SETS, ASSOC_WAYS);
+        let mut map: CapHashMap<usize, RepeatedData<u8, DATA_SIZE>> =
+            CapHashMap::new(DIRECT_SETS, ASSOC_WAYS);
         bencher.iter(|| {
             for i in 0..N {
                 map.insert_2(i, |_| RepeatedData::new(i as _));

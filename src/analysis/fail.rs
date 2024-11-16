@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::queue::fixed_queue::BitQueue;
+use crate::queue::cap_queue::BitQueue;
 
 #[derive(Debug, Clone)]
 pub struct Fail {

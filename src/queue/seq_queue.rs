@@ -10,7 +10,7 @@ use crate::{
     Clear,
 };
 
-use super::fixed_queue::BitQueue;
+use super::cap_queue::BitQueue;
 
 #[derive(Debug, Clone)]
 pub struct SeqQueue<K, V> {

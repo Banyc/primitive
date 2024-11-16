@@ -12,13 +12,13 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct FixedQueuePointer {
+pub struct CapQueuePointer {
     #[cfg(debug_assertions)]
     cap: usize,
     prev_head: usize,
     next_tail: usize,
 }
-impl FixedQueuePointer {
+impl CapQueuePointer {
     #[must_use]
     pub const fn new(#[cfg(debug_assertions)] cap: usize) -> Self {
         Self {
@@ -113,7 +113,7 @@ impl FixedQueuePointer {
     }
 }
 #[cfg(not(debug_assertions))]
-impl Default for FixedQueuePointer {
+impl Default for CapQueuePointer {
     fn default() -> Self {
         Self::new()
     }
@@ -121,7 +121,7 @@ impl Default for FixedQueuePointer {
 
 #[derive(Debug, Clone)]
 pub struct BitQueue {
-    pointer: FixedQueuePointer,
+    pointer: CapQueuePointer,
     set: BitSet,
 }
 impl BitQueue {
@@ -130,7 +130,7 @@ impl BitQueue {
         let set_len = len + 1;
         let set = BitSet::new(set_len);
         Self {
-            pointer: FixedQueuePointer::new(
+            pointer: CapQueuePointer::new(
                 #[cfg(debug_assertions)]
                 set.capacity().checked_sub(1).unwrap(),
             ),
@@ -184,18 +184,18 @@ impl Clear for BitQueue {
     fn clear(&mut self) {
         #[cfg(not(debug_assertions))]
         {
-            self.pointer = FixedQueuePointer::new();
+            self.pointer = CapQueuePointer::new();
         };
         #[cfg(debug_assertions)]
         {
-            self.pointer = FixedQueuePointer::new(self.pointer.cap());
+            self.pointer = CapQueuePointer::new(self.pointer.cap());
         };
         self.set.clear();
     }
 }
 
-pub type FixedVecQueue<T> = FixedQueue<Vec<MaybeUninit<T>>, T>;
-impl<T> FixedVecQueue<T> {
+pub type CapVecQueue<T> = CapQueue<Vec<MaybeUninit<T>>, T>;
+impl<T> CapVecQueue<T> {
     pub fn new_vec(capacity: usize) -> Self {
         let buf_len = capacity + 1;
         let mut buf = Vec::with_capacity(buf_len);
@@ -203,8 +203,8 @@ impl<T> FixedVecQueue<T> {
         Self::new(buf)
     }
 }
-pub type FixedArrayQueue<T, const N: usize> = FixedQueue<[MaybeUninit<T>; N], T>;
-impl<T, const N: usize> FixedArrayQueue<T, N> {
+pub type CapArrayQueue<T, const N: usize> = CapQueue<[MaybeUninit<T>; N], T>;
+impl<T, const N: usize> CapArrayQueue<T, N> {
     /// Capacity is actually `N - 1`
     pub fn new_array() -> Self {
         let buf = [const { MaybeUninit::uninit() }; N];
@@ -213,12 +213,12 @@ impl<T, const N: usize> FixedArrayQueue<T, N> {
 }
 
 #[derive(Debug)]
-pub struct FixedQueue<L: ListMut<MaybeUninit<T>>, T> {
+pub struct CapQueue<L: ListMut<MaybeUninit<T>>, T> {
     buf: L,
     item: PhantomData<T>,
-    pointer: FixedQueuePointer,
+    pointer: CapQueuePointer,
 }
-impl<L, T> FixedQueue<L, T>
+impl<L, T> CapQueue<L, T>
 where
     L: ListMut<MaybeUninit<T>>,
 {
@@ -228,11 +228,11 @@ where
         let pointer;
         #[cfg(debug_assertions)]
         {
-            pointer = FixedQueuePointer::new(buf.len() - 1);
+            pointer = CapQueuePointer::new(buf.len() - 1);
         }
         #[cfg(not(debug_assertions))]
         {
-            pointer = FixedQueuePointer::new();
+            pointer = CapQueuePointer::new();
         }
         Self {
             buf,
@@ -322,7 +322,7 @@ where
         })
     }
 }
-impl<L, T> Capacity for FixedQueue<L, T>
+impl<L, T> Capacity for CapQueue<L, T>
 where
     L: ListMut<MaybeUninit<T>>,
 {
@@ -330,7 +330,7 @@ where
         self.buf.len().checked_sub(1).unwrap()
     }
 }
-impl<L, T> Len for FixedQueue<L, T>
+impl<L, T> Len for CapQueue<L, T>
 where
     L: ListMut<MaybeUninit<T>>,
 {
@@ -338,7 +338,7 @@ where
         self.pointer.len(self.capacity())
     }
 }
-impl<L, T> Clone for FixedQueue<L, T>
+impl<L, T> Clone for CapQueue<L, T>
 where
     L: ListMut<MaybeUninit<T>> + Clone,
     T: Clone,
@@ -352,7 +352,7 @@ where
         new
     }
 }
-impl<L, T> Drop for FixedQueue<L, T>
+impl<L, T> Drop for CapQueue<L, T>
 where
     L: ListMut<MaybeUninit<T>>,
 {
@@ -368,8 +368,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_fixed_queue() {
-        let mut q = FixedQueue::new([MaybeUninit::uninit(); 3]);
+    fn test_cap_queue() {
+        let mut q = CapQueue::new([MaybeUninit::uninit(); 3]);
         assert!(q.is_empty());
         q.enqueue(1);
         assert_eq!(q.len(), 1);
@@ -437,7 +437,7 @@ mod benches {
     type Item = u8;
 
     #[bench]
-    fn bench_vec_deque(bencher: &mut Bencher) {
+    fn bench_vec_deque_drain(bencher: &mut Bencher) {
         let mut q: VecDeque<Item> = VecDeque::with_capacity(CAPACITY);
         let b = batch_buf();
         let mut recv = vec![];
@@ -449,7 +449,7 @@ mod benches {
         });
     }
     #[bench]
-    fn bench_vec_deque_manual(bencher: &mut Bencher) {
+    fn bench_vec_deque_slices_clear(bencher: &mut Bencher) {
         let mut q: VecDeque<Item> = VecDeque::with_capacity(CAPACITY);
         let b = batch_buf();
         let mut recv = vec![];
@@ -464,9 +464,9 @@ mod benches {
         });
     }
     #[bench]
-    fn bench_fixed_array_queue(bencher: &mut Bencher) {
+    fn bench_cap_array_queue_iter(bencher: &mut Bencher) {
         const ARRAY_SIZE: usize = CAPACITY + 1;
-        let mut q = FixedArrayQueue::<Item, ARRAY_SIZE>::new_array();
+        let mut q = CapArrayQueue::<Item, ARRAY_SIZE>::new_array();
         let b = batch_buf();
         let mut recv = vec![];
         bencher.iter(|| {
@@ -477,9 +477,9 @@ mod benches {
         });
     }
     #[bench]
-    fn bench_fixed_array_queue_extend(bencher: &mut Bencher) {
+    fn bench_cap_array_queue_extend(bencher: &mut Bencher) {
         const ARRAY_SIZE: usize = CAPACITY + 1;
-        let mut q = FixedArrayQueue::<Item, ARRAY_SIZE>::new_array();
+        let mut q = CapArrayQueue::<Item, ARRAY_SIZE>::new_array();
         let b = batch_buf();
         let mut recv: Vec<Item> = vec![];
         bencher.iter(|| {
@@ -490,8 +490,8 @@ mod benches {
         });
     }
     #[bench]
-    fn bench_fixed_vec_queue(bencher: &mut Bencher) {
-        let mut q = FixedVecQueue::<Item>::new_vec(CAPACITY);
+    fn bench_cap_vec_queue_iter(bencher: &mut Bencher) {
+        let mut q = CapVecQueue::<Item>::new_vec(CAPACITY);
         let b = batch_buf();
         let mut recv = vec![];
         bencher.iter(|| {
