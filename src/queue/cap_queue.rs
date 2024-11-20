@@ -291,17 +291,16 @@ where
         let value = core::mem::replace(value, MaybeUninit::uninit());
         Some(unsafe { value.assume_init() })
     }
-    /// Slower than [`Self::batch_dequeue()`]
-    pub fn batch_dequeue_iter(&mut self, amount: usize) -> impl Iterator<Item = T> + '_
+    pub fn batch_dequeue_iter<'a>(&mut self, amount: usize) -> impl Iterator<Item = &T> + '_
     where
-        T: Copy,
+        T: Copy + 'a,
         L: AsSlice<MaybeUninit<T>>,
     {
-        self.batch_dequeue(amount).into_iter().flat_map(|(a, b)| {
-            a.iter()
-                .copied()
-                .chain(b.into_iter().flat_map(|b| b.iter().copied()))
-        })
+        let (a, b) = match self.batch_dequeue(amount) {
+            None => (&[][..], &[][..]),
+            Some((a, b)) => (a, b.unwrap_or(&[])),
+        };
+        a.iter().chain(b)
     }
     pub fn batch_dequeue_extend<'a>(
         &'a mut self,
@@ -508,7 +507,7 @@ mod benches {
         const ARRAY_SIZE: usize = CAPACITY + 1;
         let mut q = CapArrayQueue::<Item, ARRAY_SIZE>::new_array();
         let b = batch_buf();
-        let mut recv = vec![];
+        let mut recv: Vec<Item> = vec![];
         bencher.iter(|| {
             q.batch_enqueue(&b);
             recv.extend(q.batch_dequeue_iter(b.len()));
@@ -533,7 +532,7 @@ mod benches {
     fn bench_cap_vec_queue_iter(bencher: &mut Bencher) {
         let mut q = CapVecQueue::<Item>::new_vec(CAPACITY);
         let b = batch_buf();
-        let mut recv = vec![];
+        let mut recv: Vec<Item> = vec![];
         bencher.iter(|| {
             q.batch_enqueue(&b);
             recv.extend(q.batch_dequeue_iter(b.len()));
