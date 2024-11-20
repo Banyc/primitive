@@ -48,12 +48,12 @@ where
 {
     type Out = Option<V>;
     fn insert(&mut self, key: K, value: V) -> Self::Out {
-        if self.btree_first.is_some() && *self.btree_first.as_ref().unwrap() <= key {
+        if self.btree_first.as_ref().is_some_and(|first| *first <= key) {
             return self.btree.insert(key, value);
         }
         let linear_last = self.linear.as_slice().last();
-        if self.linear.is_full() && (linear_last.is_none() || linear_last.unwrap().key < key) {
-            if self.btree_first.is_none() || key < *self.btree_first.as_ref().unwrap() {
+        if self.linear.is_full() && (linear_last.is_none_or(|last| last.key < key)) {
+            if self.btree_first.as_ref().is_none_or(|first| key < *first) {
                 self.btree_first = Some(key.clone());
             }
             return self.btree.insert(key, value);
