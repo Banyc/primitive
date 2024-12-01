@@ -3,9 +3,14 @@ use std::collections::{BinaryHeap, VecDeque};
 
 use crate::ops::{clear::Clear, len::Len, opt_cmp::MinNoneOptCmp};
 
+/// cache-friendly min-heap
+///
+/// optimal if there are mostly in-order pushes and there is significant amount of values stored
 #[derive(Debug, Clone)]
 pub struct OrdQueue<T> {
+    /// Store out-of-order values
     min_heap: BinaryHeap<Reverse<T>>,
+    /// Store in-order values
     linear: VecDeque<T>,
 }
 impl<T: Ord> OrdQueue<T> {
@@ -45,7 +50,7 @@ impl<T: Ord> OrdQueue<T> {
             core::cmp::Ordering::Equal | core::cmp::Ordering::Greater => Some(Location::Linear),
         }
     }
-    pub fn insert(&mut self, value: T) {
+    pub fn push(&mut self, value: T) {
         let linear_back = self.linear.back();
         if MinNoneOptCmp(linear_back) <= MinNoneOptCmp(Some(&value)) {
             self.linear.push_back(value);
@@ -86,13 +91,13 @@ mod tests {
     fn test_ordered_queue() {
         let mut q = OrdQueue::new();
         assert!(q.pop().is_none());
-        q.insert(3);
+        q.push(3);
         assert_eq!(q.peek().unwrap(), (&3));
         assert_eq!(q.len(), 1);
-        q.insert(2);
+        q.push(2);
         assert_eq!(q.peek().unwrap(), (&2));
         assert_eq!(q.len(), 2);
-        q.insert(3);
+        q.push(3);
         assert_eq!(q.peek().unwrap(), (&2));
         assert_eq!(q.len(), 3);
         assert_eq!(q.pop().unwrap(), (2));
@@ -100,5 +105,51 @@ mod tests {
         assert_eq!(q.pop().unwrap(), (3));
         assert!(q.pop().is_none());
         assert!(q.is_empty());
+    }
+}
+
+#[cfg(feature = "nightly")]
+#[cfg(test)]
+mod benches {
+    use test::Bencher;
+
+    use super::*;
+
+    const IN_ORDER_SEQ_BURST_SIZE: usize = 1 << 2;
+    const OUT_OF_ORDER_SEQ_BURST_SIZE: usize = 1 << 9;
+
+    #[bench]
+    fn bench_ord_queue(bencher: &mut Bencher) {
+        let mut q = OrdQueue::new();
+        bencher.iter(|| {
+            let start = 0;
+            for i in 0..IN_ORDER_SEQ_BURST_SIZE {
+                let value = start + i;
+                q.push(value);
+            }
+            let start = start + IN_ORDER_SEQ_BURST_SIZE;
+            for i in 0..OUT_OF_ORDER_SEQ_BURST_SIZE {
+                let value = start + OUT_OF_ORDER_SEQ_BURST_SIZE - 1 - i;
+                q.push(value);
+            }
+            while q.pop().is_some() {}
+        });
+    }
+    #[bench]
+    fn bench_min_heap(bencher: &mut Bencher) {
+        let mut q: BinaryHeap<Reverse<usize>> = BinaryHeap::new();
+        bencher.iter(|| {
+            let start = 0;
+            for i in 0..IN_ORDER_SEQ_BURST_SIZE {
+                let value = start + i;
+                q.push(Reverse(value));
+            }
+            let start = start + IN_ORDER_SEQ_BURST_SIZE;
+            for i in 0..OUT_OF_ORDER_SEQ_BURST_SIZE {
+                let value = start + OUT_OF_ORDER_SEQ_BURST_SIZE - 1 - i;
+                q.push(Reverse(value));
+            }
+            while q.pop().is_some() {}
+        });
     }
 }

@@ -30,7 +30,7 @@ impl<K: Eq + Hash + Clone, V> MapInsert<K, V> for ExpiringHashMap<K, V> {
         match self.hash_map.insert(key.clone(), (now, value)) {
             Some(prev) => Some(prev.1),
             None => {
-                self.ord_queue.insert(OrdEntry {
+                self.ord_queue.push(OrdEntry {
                     key: now,
                     value: key,
                 });
@@ -58,7 +58,7 @@ impl<K: Eq + Hash + Clone, V> ExpiringHashMap<K, V> {
             let real_instant = self.hash_map[&key].0;
 
             if real_instant > deadline {
-                self.ord_queue.insert(OrdEntry {
+                self.ord_queue.push(OrdEntry {
                     key: real_instant,
                     value: key,
                 });

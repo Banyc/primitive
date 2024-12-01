@@ -14,11 +14,14 @@ use crate::{
 
 use super::cap_queue::BitQueue;
 
+/// To keep incoming messages in contiguous order enforced by the sequence numbers associated with the messages respectively
 #[derive(Debug, Clone)]
 pub struct SeqQueue<K, V> {
     queue: OrdQueue<OrdEntry<K, V>>,
     next: Option<K>,
-    /// There could be `K` in [`Self::queue`] that is not covered by [`Self::keys`]
+    /// To prevent duplicate keys on [`Self::insert()`].
+    ///
+    /// There could be `K` in [`Self::queue`] that is not covered by [`Self::keys`].
     keys: Option<SeqQueueKeys<K>>,
 }
 impl<K, V> SeqQueue<K, V> {
@@ -76,6 +79,10 @@ where
             reset_bit_win(win);
             for key in sparse.iter() {
                 let Some(index) = key_index(&next, key) else {
+                    // The key can't be fit in the window.
+                    // Touching the hash set is very expensive.
+                    // Not tracking the key could lead to pushing at most one duplicate value for the same key in the future but the number of the duplicate values for this key is bounded to two.
+                    // Therefore, we give up tracking the key.
                     continue;
                 };
                 win.set(index, true);
@@ -198,7 +205,7 @@ where
             }
         }
         let entry = OrdEntry { key, value };
-        self.queue.insert(entry);
+        self.queue.push(entry);
     }
     pub fn insert_pop_all<O>(
         &mut self,
@@ -209,12 +216,12 @@ where
     ) -> Option<O> {
         let (k, v) = self.insert_pop(key, value, &mut waste).into_in_order()?;
         let ctrl = read((k, v));
-        if let ControlFlow::Break(o) = ctrl {
+        if let Some(o) = ctrl.break_value() {
             return Some(o);
         }
         while let Some((k, v)) = self.pop(&mut waste) {
             let ctrl = read((k, v));
-            if let ControlFlow::Break(o) = ctrl {
+            if let Some(o) = ctrl.break_value() {
                 return Some(o);
             }
         }
@@ -236,9 +243,12 @@ impl<K, V> Clear for SeqQueue<K, V> {
         self.queue.clear();
     }
 }
+/// To prevent duplicate keys in best-effort
 #[derive(Debug, Clone)]
 struct SeqQueueKeys<K> {
+    /// Used if the next sequence number has been primed and known
     pub win: BitQueue,
+    /// Used when the next sequence number is unknown
     pub sparse: HashSet<K>,
 }
 fn key_index<K>(next: &K, key: &K) -> Option<usize>
@@ -369,12 +379,12 @@ where
     ) -> Option<O> {
         let (k, v) = self.insert_pop(key, value, waste).into_in_order()?;
         let ctrl = read((k, v));
-        if let ControlFlow::Break(o) = ctrl {
+        if let Some(o) = ctrl.break_value() {
             return Some(o);
         }
         while let Some((k, v)) = self.pop() {
             let ctrl = read((k, v));
-            if let ControlFlow::Break(o) = ctrl {
+            if let Some(o) = ctrl.break_value() {
                 return Some(o);
             }
         }
