@@ -2,6 +2,7 @@ pub mod mcast;
 pub mod mutex;
 pub mod notify;
 pub mod seq_lock;
+pub mod set_once;
 pub mod sync_unsafe_cell;
 
 #[cfg(test)]
