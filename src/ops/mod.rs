@@ -2,6 +2,7 @@ pub mod clear;
 pub mod diff;
 pub mod dyn_ref;
 pub mod float;
+pub mod int_div;
 pub mod len;
 pub mod list;
 pub mod mut_cell;
