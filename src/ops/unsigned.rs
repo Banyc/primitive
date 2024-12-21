@@ -8,6 +8,12 @@ macro_rules! define_unsigned {
             const MAX_MASK: $primitive = (1 << $size) - 1;
             pub const MAX: Self = Self::new((1 << $size) - 1).unwrap();
             pub const MIN: Self = Self::new(0).unwrap();
+            /// # Safety
+            ///
+            /// Make sure the value is within the range of the type.
+            pub const unsafe fn new_unchecked(value: $primitive) -> Self {
+                Self { value }
+            }
             pub const fn new(value: $primitive) -> Option<Self> {
                 if value <= Self::MAX_MASK {
                     Some(Self { value })
