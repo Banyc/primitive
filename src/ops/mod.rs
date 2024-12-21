@@ -15,4 +15,5 @@ pub mod ring;
 pub mod slice;
 pub mod stacked_state;
 pub mod unit;
+pub mod unsigned;
 pub mod wrap;
