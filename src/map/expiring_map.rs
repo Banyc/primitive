@@ -20,13 +20,13 @@ impl<K, V, Time: Ord, Duration> ExpiringHashMap<K, V, Time, Duration> {
             duration,
         }
     }
-    pub fn insert(&mut self, key: K, value: V, now: Time) -> Option<V>
+    pub fn insert(&mut self, key: K, value: V, now: Time) -> Option<(V, Time)>
     where
         Time: Copy,
         K: Eq + Hash + Clone,
     {
         match self.hash_map.insert(key.clone(), (now, value)) {
-            Some(prev) => Some(prev.1),
+            Some((time, v)) => Some((v, time)),
             None => {
                 self.ord_queue.push(OrdEntry {
                     key: now,
@@ -97,12 +97,12 @@ impl<K, V, Time: Ord, Duration> ExpiringHashMap<K, V, Time, Duration> {
             None => None,
         }
     }
-    pub fn remove<Q>(&mut self, k: &Q) -> Option<(Time, V)>
+    pub fn remove<Q>(&mut self, k: &Q) -> Option<(V, Time)>
     where
         K: Borrow<Q> + Eq + Hash + Clone,
         Q: ?Sized + Eq + core::hash::Hash,
     {
-        self.hash_map.remove(k)
+        self.hash_map.remove(k).map(|(t, v)| (v, t))
     }
 }
 impl<K, V, Time, Duration> Len for ExpiringHashMap<K, V, Time, Duration> {
