@@ -81,6 +81,20 @@ pub trait LinearSearch<T>: AsSlice<T> {
         }
         Err(self.as_slice().len())
     }
+
+    /// ref: <https://curiouscoding.nl/posts/static-search-tree/#auto-vectorization>
+    fn linear_search_branchless_by(&self, mut cmp: impl FnMut(&T) -> core::cmp::Ordering) -> usize {
+        let mut count = 0;
+        for value in self.as_slice().iter() {
+            match cmp(value) {
+                core::cmp::Ordering::Less => {
+                    count += 1;
+                }
+                core::cmp::Ordering::Equal | core::cmp::Ordering::Greater => (),
+            }
+        }
+        count
+    }
 }
 impl<S, T> LinearSearch<T> for S where S: AsSlice<T> {}
 
@@ -93,5 +107,55 @@ mod tests {
         let mut v = vec![1, 2];
         assert_eq!(AsSlice::as_slice(&v)[0], 1);
         assert_eq!(AsSliceMut::as_slice_mut(&mut v)[0], 1);
+    }
+
+    #[test]
+    fn test_linear_search() {
+        let v: Vec<u32> = vec![1, 2, 4];
+        {
+            let mut cmp = |x: &u32| x.cmp(&3);
+            assert_eq!(
+                v.linear_search_by(&mut cmp).unwrap_err(),
+                v.linear_search_branchless_by(&mut cmp)
+            );
+        }
+        {
+            let mut cmp = |x: &u32| x.cmp(&2);
+            assert_eq!(
+                v.linear_search_by(&mut cmp).unwrap(),
+                v.linear_search_branchless_by(&mut cmp)
+            );
+        }
+    }
+}
+
+#[cfg(feature = "nightly")]
+#[cfg(test)]
+mod benches {
+    use std::hint::black_box;
+
+    use test::Bencher;
+
+    use super::*;
+
+    #[bench]
+    fn bench_linear_search(b: &mut Bencher) {
+        let v = (0..16).collect::<Vec<u32>>();
+        b.iter(|| {
+            for i in 0..16 {
+                let a = v.linear_search_by(|x| x.cmp(&i));
+                let _ = black_box(a);
+            }
+        });
+    }
+    #[bench]
+    fn bench_linear_search_branchless(b: &mut Bencher) {
+        let v = (0..16).collect::<Vec<u32>>();
+        b.iter(|| {
+            for i in 0..16 {
+                let a = v.linear_search_branchless_by(|x| x.cmp(&i));
+                let _ = black_box(a);
+            }
+        });
     }
 }
