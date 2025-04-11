@@ -66,7 +66,6 @@ where
     K: Eq + core::hash::Hash,
 {
     /// slower than [`std::collections::HashMap::get()`]:
-    #[must_use]
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: ?Sized + core::hash::Hash + Eq,
@@ -81,7 +80,6 @@ where
     K: Eq + core::hash::Hash,
 {
     /// slower than [`std::collections::HashMap::get_mut()`]:
-    #[must_use]
     fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         Q: ?Sized + core::hash::Hash + Eq,

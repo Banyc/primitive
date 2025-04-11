@@ -86,7 +86,7 @@ impl SparseSet {
         let long = long.index.iter().map(|index| index.get());
 
         short
-            .chain(core::iter::repeat(None).take(bubbles))
+            .chain(core::iter::repeat_n(None, bubbles))
             .zip(long)
             .enumerate()
             .filter_map(|(i, (a, b))| {

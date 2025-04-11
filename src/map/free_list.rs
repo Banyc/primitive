@@ -20,12 +20,10 @@ impl<T> Default for DenseFreeList<T> {
     }
 }
 impl<T> FreeList<T> for DenseFreeList<T> {
-    #[must_use]
     fn get(&self, index: usize) -> Option<&T> {
         let index = self.local_index(index)?;
         Some(&self.data[index].value)
     }
-    #[must_use]
     fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         let index = self.local_index(index)?;
         Some(&mut self.data[index].value)
@@ -45,7 +43,6 @@ impl<T> FreeList<T> for DenseFreeList<T> {
             .map(|data| (data.user_index, &mut data.value))
     }
 
-    #[must_use]
     fn insert(&mut self, value: T) -> usize {
         let index = self.data.len();
         let user_index = self.index.insert(index);
@@ -110,11 +107,9 @@ impl<T> Default for SparseFreeList<T> {
     }
 }
 impl<T> FreeList<T> for SparseFreeList<T> {
-    #[must_use]
     fn get(&self, index: usize) -> Option<&T> {
         self.data.get(index).and_then(|data| data.as_ref())
     }
-    #[must_use]
     fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         self.data.get_mut(index).and_then(|data| data.as_mut())
     }
@@ -140,7 +135,6 @@ impl<T> FreeList<T> for SparseFreeList<T> {
             })
     }
 
-    #[must_use]
     fn insert(&mut self, value: T) -> usize {
         self.count += 1;
         let Some(index) = self.free.pop() else {

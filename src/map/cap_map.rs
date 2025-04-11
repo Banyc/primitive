@@ -308,9 +308,8 @@ mod benches {
 
     use super::*;
 
-    const DIRECT_SETS: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1 << 10) };
-    const ASSOC_WAYS: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1 << 2) };
-    // const ASSOC_WAYS: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1) };
+    const DIRECT_SETS: NonZeroUsize = const { NonZeroUsize::new(1 << 10).unwrap() };
+    const ASSOC_WAYS: NonZeroUsize = const { NonZeroUsize::new(1 << 2).unwrap() };
     const DATA_SIZE: usize = 1 << 6;
     const N: usize = 1 << 9;
 
