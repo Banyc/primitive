@@ -31,6 +31,7 @@ impl<T> SeqLock<T> {
         assert_eq!(prev_end & 1, 1);
     }
 
+    /// Return [`None`] if the value is being modified or been modified during read
     #[must_use]
     pub fn load(&self) -> Option<(T, u32)>
     where

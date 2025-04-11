@@ -13,7 +13,7 @@ use super::{mutex::Mutex1, seq_lock::SeqLock};
 #[derive(Debug)]
 pub struct SpMcast<T, const N: usize> {
     ring: [SeqLock<MaybeUninit<T>>; N],
-    next: AtomicUsize,
+    next_pos: AtomicUsize,
 }
 impl<T, const N: usize> SpMcast<T, N> {
     pub const fn new() -> Self {
@@ -21,25 +21,27 @@ impl<T, const N: usize> SpMcast<T, N> {
             assert!(1 < N);
         }
         let ring = [const { SeqLock::new(MaybeUninit::uninit()) }; N];
-        let next = AtomicUsize::new(0);
-        Self { ring, next }
+        let next_pos = AtomicUsize::new(0);
+        Self { ring, next_pos }
     }
 
-    pub fn next_version(&self) -> (usize, MinVer) {
-        let next = self.next.load(Ordering::Acquire);
-        let version = self.ring[next].version();
+    /// Return the next position and version for the new readers
+    pub fn next_version(&self) -> (usize, CellVer) {
+        let next_pos = self.next_pos.load(Ordering::Acquire);
+        let raw_next_ver = self.ring[next_pos].version();
         fence(Ordering::Release);
-        let new_next = self.next.load(Ordering::Relaxed);
-        if version & 1 == 1 {
-            let min_ver = version.wrapping_add(1);
-            return (next, MinVer(min_ver));
+        let new_next_pos = self.next_pos.load(Ordering::Relaxed);
+        if raw_next_ver & 1 == 1 {
+            let next_ver = raw_next_ver.wrapping_add(1);
+            return (next_pos, CellVer(next_ver));
         }
-        let min_ver = if next == new_next {
-            version.wrapping_add(2)
+        let no_write_during_ver_loading = next_pos == new_next_pos;
+        let next_ver = if no_write_during_ver_loading {
+            raw_next_ver.wrapping_add(2)
         } else {
-            version
+            raw_next_ver
         };
-        (next, MinVer(min_ver))
+        (next_pos, CellVer(next_ver))
     }
 }
 impl<T, const N: usize> SpMcast<T, N>
@@ -50,27 +52,27 @@ where
     ///
     /// Must only be accessed by one thread at a time
     pub unsafe fn push(&self, value: T) {
-        let next = self.next.load(Ordering::Acquire);
+        let next_pos = self.next_pos.load(Ordering::Acquire);
         let value = MaybeUninit::new(value);
-        let lock = &self.ring[next];
-        unsafe { lock.store(value) };
-        let next = next.ring_add(1, N - 1);
-        self.next.store(next, Ordering::Release);
+        let locked_cell = &self.ring[next_pos];
+        unsafe { locked_cell.store(value) };
+        let next = next_pos.ring_add(1, N - 1);
+        self.next_pos.store(next, Ordering::Release);
     }
 
     /// # Safety
     ///
-    /// `min_ver` must be received from [`Self::next_version()`] and later updated by [`Self::load()`] both from this instance
-    pub unsafe fn load(&self, position: usize, min_ver: MinVer) -> Option<(T, MinVer)> {
-        let lock = &self.ring[position];
-        let (value, ver) = lock.load()?;
-        let ahead_of_write = ver.wrapping_add(2) == min_ver.0;
+    /// `next_ver` must be received from [`Self::next_version()`] and later updated by [`Self::load()`] both from this instance
+    pub unsafe fn load(&self, position: usize, next_ver: CellVer) -> Option<(T, CellVer)> {
+        let locked_cell = &self.ring[position];
+        let (value, ver) = locked_cell.load()?;
+        let ahead_of_write = ver.wrapping_add(2) == next_ver.0;
         if ahead_of_write {
             return None;
         }
         let value = unsafe { value.assume_init() };
-        let min_ver = MinVer(ver);
-        Some((value, min_ver))
+        let next_ver = CellVer(ver);
+        Some((value, next_ver))
     }
 }
 impl<T, const N: usize> Default for SpMcast<T, N> {
@@ -80,7 +82,7 @@ impl<T, const N: usize> Default for SpMcast<T, N> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MinVer(u32);
+pub struct CellVer(u32);
 
 pub fn spmcast_channel<T, const N: usize>(
 ) -> (SpMcastReader<T, N, Arc<SpMcast<T, N>>>, SpMcastWriter<T, N>) {
@@ -106,18 +108,18 @@ where
 #[derive(Debug, Clone)]
 pub struct SpMcastReader<T, const N: usize, Q> {
     queue: DynRef<Q, SpMcast<T, N>>,
-    position: usize,
-    min_ver: MinVer,
+    next_pos: usize,
+    next_ver: CellVer,
     read_once: bool,
     _item: PhantomData<T>,
 }
 impl<T, const N: usize, Q> SpMcastReader<T, N, Q> {
     pub fn new(queue: DynRef<Q, SpMcast<T, N>>) -> Self {
-        let (position, min_ver) = queue.convert().next_version();
+        let (next_pos, next_ver) = queue.convert().next_version();
         Self {
             queue,
-            position,
-            min_ver,
+            next_pos,
+            next_ver,
             read_once: false,
             _item: PhantomData,
         }
@@ -126,14 +128,14 @@ impl<T, const N: usize, Q> SpMcastReader<T, N, Q> {
     where
         T: Copy,
     {
-        let (val, ver) = unsafe { self.queue.convert().load(self.position, self.min_ver) }?;
-        let ver_bump = self.min_ver != ver;
-        let at_ver_start_pos = 0 == self.position;
+        let (val, ver) = unsafe { self.queue.convert().load(self.next_pos, self.next_ver) }?;
+        let ver_bump = self.next_ver != ver;
+        let at_ver_start_pos = 0 == self.next_pos;
         if !ver_bump && at_ver_start_pos && self.read_once {
             return None;
         }
-        self.min_ver = ver;
-        self.position = self.position.ring_add(1, N - 1);
+        self.next_ver = ver;
+        self.next_pos = self.next_pos.ring_add(1, N - 1);
         self.read_once = true;
         Some(val)
     }
