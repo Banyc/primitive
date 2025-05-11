@@ -217,6 +217,7 @@ mod tests {
     const QUEUE_SIZE: usize = 2;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_spmcast() {
         let (rdr, mut wtr) = spmcast_channel::<RepeatedData<_, DATA_COUNT>, QUEUE_SIZE>();
         let mut threads = vec![];
@@ -258,6 +259,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_transmute() {
         type Queue = MpMcast<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>;
         const BUF_SIZE: usize = core::mem::size_of::<Queue>();

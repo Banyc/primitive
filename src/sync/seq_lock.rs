@@ -1,5 +1,5 @@
 use core::sync::atomic::{fence, AtomicU32, Ordering};
-use std::sync::Arc;
+use std::{mem::MaybeUninit, sync::Arc};
 
 use super::sync_unsafe_cell::SyncUnsafeCell;
 
@@ -7,14 +7,14 @@ use super::sync_unsafe_cell::SyncUnsafeCell;
 /// - prioritized in write
 #[derive(Debug)]
 pub struct SeqLock<T> {
-    value: SyncUnsafeCell<T>,
+    value: SyncUnsafeCell<MaybeUninit<T>>,
     version: AtomicU32,
 }
 impl<T> SeqLock<T> {
     #[must_use]
     pub const fn new(value: T) -> Self {
         Self {
-            value: SyncUnsafeCell::new(value),
+            value: SyncUnsafeCell::new(MaybeUninit::new(value)),
             version: AtomicU32::new(0),
         }
     }
@@ -25,7 +25,7 @@ impl<T> SeqLock<T> {
     pub unsafe fn store(&self, value: T) {
         let prev_start = self.version.fetch_add(1, Ordering::Acquire);
         let v = unsafe { self.value.get().as_mut() }.unwrap();
-        *v = value;
+        *v = MaybeUninit::new(value);
         let prev_end = self.version.fetch_add(1, Ordering::Release);
         assert_eq!(prev_start & 1, 0);
         assert_eq!(prev_end & 1, 1);
@@ -46,7 +46,7 @@ impl<T> SeqLock<T> {
         if start_in_write || span_thru_write {
             return None;
         }
-        Some((v, start))
+        Some((unsafe { v.assume_init() }, start))
     }
 
     #[must_use]
@@ -102,6 +102,7 @@ mod tests {
     // const RATE: f64 = 0.3;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_seq_lock() {
         let l = SeqLock::new(RepeatedData::<_, DATA_COUNT>::new(0));
         let l = Arc::new(l);
