@@ -1,5 +1,8 @@
 use core::sync::atomic::{AtomicU32, Ordering, fence};
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use atomic_memcpy::{atomic_load, atomic_store};
 
@@ -9,11 +12,11 @@ use super::sync_unsafe_cell::SyncUnsafeCell;
 /// - prioritized in write
 #[derive(Debug)]
 #[repr(C)]
-pub struct SeqLock<T> {
+pub struct SeqLock<T: ContainNoUninitializedBytes> {
     value: SyncUnsafeCell<T>,
     version: AtomicU32,
 }
-impl<T> SeqLock<T> {
+impl<T: ContainNoUninitializedBytes> SeqLock<T> {
     #[must_use]
     pub const fn new(value: T) -> Self {
         Self {
@@ -24,7 +27,7 @@ impl<T> SeqLock<T> {
 
     /// # Safety
     ///
-    /// Must only be accessed by one thread at a time
+    /// - Must only be accessed by one thread at a time.
     pub unsafe fn store(&self, value: T) {
         let prev_start = self.version.fetch_add(1, Ordering::Acquire);
         unsafe { atomic_store(self.value.get(), value, Ordering::Release) };
@@ -39,7 +42,7 @@ impl<T> SeqLock<T> {
         let start = self.version.load(Ordering::Acquire);
         let v = unsafe { atomic_load(self.value.get(), Ordering::Acquire) };
         fence(Ordering::Release);
-        let end = self.version.load(Ordering::Relaxed);
+        let end = self.version.load(Ordering::Acquire);
         let start_in_write = start & 1 == 1;
         let span_thru_write = start != end;
         if start_in_write || span_thru_write {
@@ -54,7 +57,9 @@ impl<T> SeqLock<T> {
     }
 }
 
-pub fn safe_seq_lock<T>(value: T) -> (SeqLockReader<T>, SeqLockWriter<T>) {
+pub fn safe_seq_lock<T: ContainNoUninitializedBytes>(
+    value: T,
+) -> (SeqLockReader<T>, SeqLockWriter<T>) {
     let lock = SeqLock::new(value);
     let lock = Arc::new(lock);
     let reader = SeqLockReader {
@@ -66,22 +71,50 @@ pub fn safe_seq_lock<T>(value: T) -> (SeqLockReader<T>, SeqLockWriter<T>) {
     (reader, writer)
 }
 #[derive(Debug, Clone)]
-pub struct SeqLockReader<T> {
+pub struct SeqLockReader<T: ContainNoUninitializedBytes> {
     lock: Arc<SeqLock<T>>,
 }
-impl<T> SeqLockReader<T> {
+impl<T: ContainNoUninitializedBytes> SeqLockReader<T> {
     pub fn load(&self) -> Option<T> {
         self.lock.load().map(|(x, _)| x)
     }
 }
 #[derive(Debug)]
-pub struct SeqLockWriter<T> {
+pub struct SeqLockWriter<T: ContainNoUninitializedBytes> {
     lock: Arc<SeqLock<T>>,
 }
-impl<T> SeqLockWriter<T> {
+impl<T: ContainNoUninitializedBytes> SeqLockWriter<T> {
     pub fn store(&mut self, value: T) {
         unsafe { self.lock.store(value) };
     }
+}
+
+/// # Safety
+///
+/// must not contain uninitialized bytes
+pub unsafe trait ContainNoUninitializedBytes {}
+unsafe impl ContainNoUninitializedBytes for bool {}
+unsafe impl ContainNoUninitializedBytes for u8 {}
+unsafe impl ContainNoUninitializedBytes for u16 {}
+unsafe impl ContainNoUninitializedBytes for u32 {}
+unsafe impl ContainNoUninitializedBytes for u64 {}
+unsafe impl ContainNoUninitializedBytes for u128 {}
+unsafe impl ContainNoUninitializedBytes for i8 {}
+unsafe impl ContainNoUninitializedBytes for i16 {}
+unsafe impl ContainNoUninitializedBytes for i32 {}
+unsafe impl ContainNoUninitializedBytes for i64 {}
+unsafe impl ContainNoUninitializedBytes for i128 {}
+unsafe impl ContainNoUninitializedBytes for usize {}
+unsafe impl ContainNoUninitializedBytes for isize {}
+unsafe impl ContainNoUninitializedBytes for f32 {}
+unsafe impl ContainNoUninitializedBytes for f64 {}
+unsafe impl ContainNoUninitializedBytes for Instant {}
+unsafe impl ContainNoUninitializedBytes for Duration {}
+unsafe impl<T: ContainNoUninitializedBytes> ContainNoUninitializedBytes for [T] {}
+unsafe impl<T: ContainNoUninitializedBytes> ContainNoUninitializedBytes for Option<T> {}
+unsafe impl<T: ContainNoUninitializedBytes, E: ContainNoUninitializedBytes>
+    ContainNoUninitializedBytes for Result<T, E>
+{
 }
 
 #[cfg(test)]

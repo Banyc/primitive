@@ -107,7 +107,10 @@ mod tests {
     use crate::{
         analysis::bench::ExpMovVar,
         ops::unit::{DurationExt, HumanDuration},
-        sync::mcast::{self, spmcast_channel},
+        sync::{
+            mcast::{self, spmcast_channel},
+            seq_lock::ContainNoUninitializedBytes,
+        },
         time::timer::Timer,
     };
 
@@ -152,7 +155,7 @@ mod tests {
             crossbeam::channel::Sender::send(self, msg).map_err(|e| e.0)
         }
     }
-    impl<T: Copy, const N: usize> ChanSend<T> for mcast::SpMcastWriter<T, N> {
+    impl<T: ContainNoUninitializedBytes, const N: usize> ChanSend<T> for mcast::SpMcastWriter<T, N> {
         fn send(&mut self, msg: T) -> Result<(), T> {
             mcast::SpMcastWriter::push(self, msg);
             Ok(())
@@ -191,7 +194,9 @@ mod tests {
             })
         }
     }
-    impl<T: Copy, const N: usize, Q> ChanRecv<T> for mcast::SpMcastReader<T, N, Q> {
+    impl<T: ContainNoUninitializedBytes, const N: usize, Q> ChanRecv<T>
+        for mcast::SpMcastReader<T, N, Q>
+    {
         fn recv(&mut self) -> Result<T, ()> {
             loop {
                 let Some(msg) = mcast::SpMcastReader::pop(self) else {
@@ -209,8 +214,10 @@ mod tests {
         mut tx: impl ChanSend<Instant> + Send + 'static,
         mut rx: impl ChanRecv<Instant> + Send + 'static,
     ) {
-        std::thread::spawn(move || loop {
-            tx.send(Instant::now()).unwrap();
+        std::thread::spawn(move || {
+            loop {
+                tx.send(Instant::now()).unwrap();
+            }
         });
         std::thread::spawn(move || {
             let mut report = LatencyReport::default();
@@ -253,7 +260,7 @@ mod tests {
     #[test]
     #[ignore]
     fn bench_channel_latency_spmcast() {
-        let (rx, tx) = spmcast_channel::<Instant, 2>();
+        let (rx, tx) = spmcast_channel::<Instant, 2>(|_| Instant::now());
         bench_channel_latency(tx, rx);
     }
 

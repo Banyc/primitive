@@ -91,12 +91,14 @@ mod benches {
 
     use super::*;
 
+    #[cfg(miri)]
+    const N: usize = 1 << 2;
+    #[cfg(not(miri))]
     const N: usize = 1 << 11;
     const THREADS: usize = 1 << 3;
     const DATA_COUNT: usize = 1 << 10;
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn bench_mutex() {
         let now = Instant::now();
         let lock = Arc::new(Mutex::new(()));
@@ -120,7 +122,6 @@ mod benches {
         dbg!(now.elapsed());
     }
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn bench_mutex1() {
         let now = Instant::now();
         let lock = Arc::new(Mutex1::new());

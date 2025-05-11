@@ -7,10 +7,16 @@ pub mod sync_unsafe_cell;
 
 #[cfg(test)]
 pub mod tests {
+    use super::seq_lock::ContainNoUninitializedBytes;
+
     #[derive(Debug, Clone, Copy)]
     #[repr(C)]
     pub struct RepeatedData<T, const DATA_COUNT: usize> {
         values: [T; DATA_COUNT],
+    }
+    unsafe impl<T: ContainNoUninitializedBytes, const DATA_COUNT: usize> ContainNoUninitializedBytes
+        for RepeatedData<T, DATA_COUNT>
+    {
     }
     impl<T, const DATA_SIZE: usize> RepeatedData<T, DATA_SIZE>
     where
