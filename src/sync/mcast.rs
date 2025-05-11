@@ -139,6 +139,7 @@ impl<T: ContainNoUninitializedBytes, const N: usize, Q> SpMcastReader<T, N, Q> {
 
 /// - message overwriting.
 #[derive(Debug)]
+#[repr(C)]
 pub struct MpMcast<T: ContainNoUninitializedBytes, const N: usize> {
     write: Mutex1,
     queue: SpMcast<T, N>,
@@ -192,6 +193,8 @@ impl<T: ContainNoUninitializedBytes, const N: usize, Q> MpMcastReader<T, N, Q> {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::MaybeUninit;
+
     use crate::sync::tests::RepeatedData;
 
     use super::*;
@@ -247,16 +250,26 @@ mod tests {
         }
     }
 
+    /// [`MaybeUninit::as_bytes()`]
+    fn maybe_uninit_as_bytes<T>(uninit: &MaybeUninit<T>) -> &[MaybeUninit<u8>] {
+        unsafe {
+            core::slice::from_raw_parts(
+                uninit.as_ptr().cast::<MaybeUninit<u8>>(),
+                core::mem::size_of::<T>(),
+            )
+        }
+    }
+
     #[test]
     fn test_transmute() {
         type Queue = MpMcast<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>;
         const BUF_SIZE: usize = core::mem::size_of::<Queue>();
-        type Buf = [u8; BUF_SIZE];
-        let mut buf = Box::new([0; BUF_SIZE]);
-        let buf = {
+        type Buf = [MaybeUninit<u8>; BUF_SIZE];
+        let mut buf = Box::new([MaybeUninit::uninit(); BUF_SIZE]);
+        let buf: Arc<Buf> = {
             let queue: Queue = MpMcast::new(|_| RepeatedData::new(0));
-            let bytes = unsafe { core::mem::transmute::<Queue, Buf>(queue) };
-            buf.copy_from_slice(&bytes);
+            let queue: MaybeUninit<Queue> = MaybeUninit::new(queue);
+            buf.copy_from_slice(maybe_uninit_as_bytes(&queue));
             buf.into()
         };
         let queue = unsafe { core::mem::transmute::<Arc<Buf>, Arc<Queue>>(buf) };
