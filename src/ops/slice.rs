@@ -98,6 +98,16 @@ pub trait LinearSearch<T>: AsSlice<T> {
 }
 impl<S, T> LinearSearch<T> for S where S: AsSlice<T> {}
 
+pub trait LossyCpy: AsSliceMut<u8> {
+    fn lossy_copy_from_slice(&mut self, src: &[u8]) -> usize {
+        let this = self.as_slice_mut();
+        let len = this.len().min(src.len());
+        this[..len].copy_from_slice(&src[..len]);
+        len
+    }
+}
+impl<T> LossyCpy for T where T: AsSliceMut<u8> {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +136,14 @@ mod tests {
                 v.linear_search_branchless_by(&mut cmp)
             );
         }
+    }
+
+    #[test]
+    fn test_lossy_cpy() {
+        let mut v: Vec<u8> = vec![1, 2];
+        let len = v.lossy_copy_from_slice(&[3]);
+        assert_eq!(len, 1);
+        assert_eq!(v, &[3, 2]);
     }
 }
 
