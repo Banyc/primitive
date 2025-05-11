@@ -1,20 +1,23 @@
-use core::sync::atomic::{fence, AtomicU32, Ordering};
-use std::{mem::MaybeUninit, sync::Arc};
+use core::sync::atomic::{AtomicU32, Ordering, fence};
+use std::sync::Arc;
+
+use atomic_memcpy::{atomic_load, atomic_store};
 
 use super::sync_unsafe_cell::SyncUnsafeCell;
 
 /// - single producer, multiple consumers
 /// - prioritized in write
 #[derive(Debug)]
+#[repr(C)]
 pub struct SeqLock<T> {
-    value: SyncUnsafeCell<MaybeUninit<T>>,
+    value: SyncUnsafeCell<T>,
     version: AtomicU32,
 }
 impl<T> SeqLock<T> {
     #[must_use]
     pub const fn new(value: T) -> Self {
         Self {
-            value: SyncUnsafeCell::new(MaybeUninit::new(value)),
+            value: SyncUnsafeCell::new(value),
             version: AtomicU32::new(0),
         }
     }
@@ -24,8 +27,7 @@ impl<T> SeqLock<T> {
     /// Must only be accessed by one thread at a time
     pub unsafe fn store(&self, value: T) {
         let prev_start = self.version.fetch_add(1, Ordering::Acquire);
-        let v = unsafe { self.value.get().as_mut() }.unwrap();
-        *v = MaybeUninit::new(value);
+        unsafe { atomic_store(self.value.get(), value, Ordering::Release) };
         let prev_end = self.version.fetch_add(1, Ordering::Release);
         assert_eq!(prev_start & 1, 0);
         assert_eq!(prev_end & 1, 1);
@@ -33,12 +35,9 @@ impl<T> SeqLock<T> {
 
     /// Return [`None`] if the value is being modified or been modified during read
     #[must_use]
-    pub fn load(&self) -> Option<(T, u32)>
-    where
-        T: Copy,
-    {
+    pub fn load(&self) -> Option<(T, u32)> {
         let start = self.version.load(Ordering::Acquire);
-        let v = *unsafe { self.value.get().as_ref() }.unwrap();
+        let v = unsafe { atomic_load(self.value.get(), Ordering::Acquire) };
         fence(Ordering::Release);
         let end = self.version.load(Ordering::Relaxed);
         let start_in_write = start & 1 == 1;
@@ -71,10 +70,7 @@ pub struct SeqLockReader<T> {
     lock: Arc<SeqLock<T>>,
 }
 impl<T> SeqLockReader<T> {
-    pub fn load(&self) -> Option<T>
-    where
-        T: Copy,
-    {
+    pub fn load(&self) -> Option<T> {
         self.lock.load().map(|(x, _)| x)
     }
 }
@@ -97,12 +93,14 @@ mod tests {
     use super::*;
 
     const DATA_COUNT: usize = 1024;
+    #[cfg(miri)]
+    const N: usize = 1 << 2;
+    #[cfg(not(miri))]
     const N: usize = 1 << 18;
     const THREADS: usize = 1 << 3;
     // const RATE: f64 = 0.3;
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn test_seq_lock() {
         let l = SeqLock::new(RepeatedData::<_, DATA_COUNT>::new(0));
         let l = Arc::new(l);

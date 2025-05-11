@@ -8,6 +8,7 @@ pub mod sync_unsafe_cell;
 #[cfg(test)]
 pub mod tests {
     #[derive(Debug, Clone, Copy)]
+    #[repr(C)]
     pub struct RepeatedData<T, const DATA_COUNT: usize> {
         values: [T; DATA_COUNT],
     }

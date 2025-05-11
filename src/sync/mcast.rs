@@ -1,7 +1,7 @@
 use core::{
     marker::PhantomData,
     mem::MaybeUninit,
-    sync::atomic::{fence, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering, fence},
 };
 use std::sync::Arc;
 
@@ -11,6 +11,7 @@ use super::{mutex::Mutex1, seq_lock::SeqLock};
 
 /// - message overwriting
 #[derive(Debug)]
+#[repr(C)]
 pub struct SpMcast<T, const N: usize> {
     ring: [SeqLock<MaybeUninit<T>>; N],
     next_pos: AtomicUsize,
@@ -84,8 +85,8 @@ impl<T, const N: usize> Default for SpMcast<T, N> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CellVer(u32);
 
-pub fn spmcast_channel<T, const N: usize>(
-) -> (SpMcastReader<T, N, Arc<SpMcast<T, N>>>, SpMcastWriter<T, N>) {
+pub fn spmcast_channel<T, const N: usize>()
+-> (SpMcastReader<T, N, Arc<SpMcast<T, N>>>, SpMcastWriter<T, N>) {
     let queue = SpMcast::new();
     let queue = Arc::new(queue);
     let queue_ref = DynRef::new(Arc::clone(&queue), |q| q.as_ref());
@@ -176,8 +177,8 @@ where
     }
 }
 #[allow(clippy::type_complexity)]
-pub fn mpmcast_channel<T, const N: usize>(
-) -> (MpMcastReader<T, N, Arc<MpMcast<T, N>>>, Arc<MpMcast<T, N>>) {
+pub fn mpmcast_channel<T, const N: usize>()
+-> (MpMcastReader<T, N, Arc<MpMcast<T, N>>>, Arc<MpMcast<T, N>>) {
     let queue = MpMcast::new();
     let queue = Arc::new(queue);
     let reader = MpMcastReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
