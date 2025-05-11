@@ -120,7 +120,7 @@ impl<F> UnitR<F> {
     /// Float must be in the unit interval [0, 1]
     pub const unsafe fn new_unchecked(float: F) -> Self {
         Self {
-            v: R::new_unchecked(float),
+            v: unsafe { R::new_unchecked(float) },
         }
     }
 }
@@ -160,7 +160,7 @@ impl<F> NonNegR<F> {
     /// Float must be in \[0, inf)
     pub const unsafe fn new_unchecked(float: F) -> Self {
         Self {
-            v: R::new_unchecked(float),
+            v: unsafe { R::new_unchecked(float) },
         }
     }
 }
@@ -200,7 +200,7 @@ impl<F> PosR<F> {
     /// Float must be in (0, inf)
     pub const unsafe fn new_unchecked(float: F) -> Self {
         Self {
-            v: R::new_unchecked(float),
+            v: unsafe { R::new_unchecked(float) },
         }
     }
 }
