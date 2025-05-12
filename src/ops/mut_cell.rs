@@ -31,7 +31,7 @@ impl<T> MutCell<T> {
         return self.cell.borrow_mut();
         #[cfg(not(debug_assertions))]
         {
-            let value = &mut *self.cell.get();
+            let value = unsafe { &mut *self.cell.get() };
             ThinWrapMut::new(value)
         }
     }
@@ -44,7 +44,7 @@ impl<T> MutCell<T> {
         return self.cell.borrow();
         #[cfg(not(debug_assertions))]
         {
-            let value = &*self.cell.get();
+            let value = unsafe { &*self.cell.get() };
             ThinWrap::new(value)
         }
     }
