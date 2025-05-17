@@ -31,7 +31,7 @@ impl BitSet {
 #[derive(Debug, Clone)]
 pub struct BitSet {
     words: Vec<usize>,
-    count: usize,
+    ones: usize,
     capacity_bits: usize,
 }
 impl BitSet {
@@ -41,18 +41,20 @@ impl BitSet {
         let words = bytes.div_ceil(core::mem::size_of::<usize>());
         Self {
             words: vec![0; words],
-            count: 0,
+            ones: 0,
             capacity_bits: bits,
         }
     }
     #[must_use]
     pub fn get(&self, index: usize) -> bool {
+        assert!(index < self.capacity_bits);
         let word = self.words[word_index(index)];
         let pos = 1 << bit_offset(index);
         let is_empty = word & pos == 0;
         !is_empty
     }
     fn bit_op(&mut self, bit_index: usize, op: impl Fn(BitOpArgs) -> usize) {
+        assert!(bit_index < self.capacity_bits);
         let word = &mut self.words[word_index(bit_index)];
         let prev = word.count_ones();
         let pos = 1 << bit_offset(bit_index);
@@ -60,9 +62,9 @@ impl BitSet {
         *word = op(args);
         let curr = word.count_ones();
         match prev.cmp(&curr) {
-            core::cmp::Ordering::Less => self.count += usize::try_from(curr - prev).unwrap(),
+            core::cmp::Ordering::Less => self.ones += usize::try_from(curr - prev).unwrap(),
             core::cmp::Ordering::Equal => (),
-            core::cmp::Ordering::Greater => self.count -= usize::try_from(prev - curr).unwrap(),
+            core::cmp::Ordering::Greater => self.ones -= usize::try_from(prev - curr).unwrap(),
         }
     }
     pub fn set(&mut self, index: usize) {
@@ -81,7 +83,7 @@ struct BitOpArgs {
 }
 impl Len for BitSet {
     fn len(&self) -> usize {
-        self.count
+        self.ones
     }
 }
 impl Capacity for BitSet {
@@ -92,7 +94,7 @@ impl Capacity for BitSet {
 impl Clear for BitSet {
     fn clear(&mut self) {
         self.words.iter_mut().for_each(|x| *x = 0);
-        self.count = 0;
+        self.ones = 0;
     }
 }
 
