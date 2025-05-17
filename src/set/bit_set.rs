@@ -1,12 +1,38 @@
-use crate::ops::{clear::Clear, len::Len};
+use crate::ops::{
+    clear::Clear,
+    len::{Capacity, Len},
+};
 
 const BITS_PER_BYTE: usize = 8;
 const USIZE_BITS: usize = core::mem::size_of::<usize>() * BITS_PER_BYTE;
 
 #[derive(Debug, Clone)]
+pub struct Iter<'a> {
+    set: &'a BitSet,
+    next: usize,
+}
+impl Iterator for Iter<'_> {
+    type Item = bool;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.set.capacity() == self.next {
+            return None;
+        }
+        let bit = self.set.get(self.next);
+        self.next += 1;
+        Some(bit)
+    }
+}
+impl BitSet {
+    pub fn iter(&self) -> Iter<'_> {
+        Iter { set: self, next: 0 }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct BitSet {
     words: Vec<usize>,
     count: usize,
+    capacity_bits: usize,
 }
 impl BitSet {
     #[must_use]
@@ -16,13 +42,9 @@ impl BitSet {
         Self {
             words: vec![0; words],
             count: 0,
+            capacity_bits: bits,
         }
     }
-    #[must_use]
-    pub fn capacity(&self) -> usize {
-        self.words.len() * USIZE_BITS
-    }
-
     #[must_use]
     pub fn get(&self, index: usize) -> bool {
         let word = self.words[word_index(index)];
@@ -60,6 +82,11 @@ struct BitOpArgs {
 impl Len for BitSet {
     fn len(&self) -> usize {
         self.count
+    }
+}
+impl Capacity for BitSet {
+    fn capacity(&self) -> usize {
+        self.capacity_bits
     }
 }
 impl Clear for BitSet {

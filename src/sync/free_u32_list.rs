@@ -5,24 +5,27 @@ use core::{
 };
 
 #[derive(Debug)]
-pub struct IterOccupied<'a, const N: usize> {
+pub struct IterVacant<'a, const N: usize> {
     list: &'a mut FreeU32List<N>,
     next: u32,
 }
-impl<const N: usize> Iterator for IterOccupied<'_, N> {
+impl<const N: usize> Iterator for IterVacant<'_, N> {
     type Item = u32;
     fn next(&mut self) -> Option<Self::Item> {
         let curr_index = self.next;
-        let next_slot = self.list.next.get(usize::try_from(curr_index).unwrap())?;
+        let next_slot = self
+            .list
+            .next_vacant
+            .get(usize::try_from(curr_index).unwrap())?;
         self.next = next_slot.load(Ordering::Relaxed);
         Some(curr_index)
     }
 }
 impl<const N: usize> FreeU32List<N> {
-    pub fn iter_occupied(&mut self) -> IterOccupied<'_, N> {
-        let head_u64 = self.head.load(Ordering::Acquire);
+    pub fn iter_vacant(&mut self) -> IterVacant<'_, N> {
+        let head_u64 = self.head_vacant.load(Ordering::Acquire);
         let head = u64_to_tidx(head_u64);
-        IterOccupied {
+        IterVacant {
             list: self,
             next: head.index,
         }
@@ -31,8 +34,8 @@ impl<const N: usize> FreeU32List<N> {
 
 #[derive(Debug)]
 pub struct FreeU32List<const N: usize> {
-    head: AtomicU64,
-    next: [AtomicU32; N],
+    head_vacant: AtomicU64,
+    next_vacant: [AtomicU32; N],
 }
 impl<const N: usize> Default for FreeU32List<N> {
     fn default() -> Self {
@@ -47,13 +50,16 @@ impl<const N: usize> FreeU32List<N> {
         };
         let head = AtomicU64::new(tidx_to_u64(head));
         let next = array::from_fn(|i| AtomicU32::new(u32::try_from(i + 1).unwrap()));
-        Self { head, next }
+        Self {
+            head_vacant: head,
+            next_vacant: next,
+        }
     }
-    pub fn pop(&self) -> Option<u32> {
+    pub fn alloc(&self) -> Option<u32> {
         Some(loop {
-            let head_u64 = self.head.load(Ordering::Acquire);
+            let head_u64 = self.head_vacant.load(Ordering::Acquire);
             let head = u64_to_tidx(head_u64);
-            let next_head = self.next.get(usize::try_from(head.index).unwrap())?;
+            let next_head = self.next_vacant.get(usize::try_from(head.index).unwrap())?;
             let next_head = next_head.load(Ordering::Relaxed);
             let next_head = TaggedIndex {
                 index: next_head,
@@ -61,7 +67,7 @@ impl<const N: usize> FreeU32List<N> {
             };
             let next_head_u64 = tidx_to_u64(next_head);
             if self
-                .head
+                .head_vacant
                 .compare_exchange(head_u64, next_head_u64, Ordering::AcqRel, Ordering::Relaxed)
                 .is_ok()
             {
@@ -71,20 +77,20 @@ impl<const N: usize> FreeU32List<N> {
     }
     /// # Safety
     ///
-    /// - `val` is from [`Self::pop()`]
-    /// - once pushed after [`Self::pop()`], `val` will not be pushed anymore unless it has been pulled from [`Self::pop()`] later
-    pub unsafe fn push(&self, val: u32) {
+    /// - `val` is from [`Self::alloc()`]
+    /// - once freed after [`Self::alloc()`], `val` will not be freed anymore unless it has been pulled from [`Self::alloc()`] later
+    pub unsafe fn free(&self, val: u32) {
         loop {
-            let head_u64 = self.head.load(Ordering::Acquire);
+            let head_u64 = self.head_vacant.load(Ordering::Acquire);
             let head = u64_to_tidx(head_u64);
-            self.next[usize::try_from(val).unwrap()].store(head.index, Ordering::Relaxed);
+            self.next_vacant[usize::try_from(val).unwrap()].store(head.index, Ordering::Relaxed);
             let new_head = TaggedIndex {
                 index: val,
                 tag: head.tag.next(),
             };
             let new_head_u64 = tidx_to_u64(new_head);
             if self
-                .head
+                .head_vacant
                 .compare_exchange(head_u64, new_head_u64, Ordering::AcqRel, Ordering::Relaxed)
                 .is_ok()
             {
@@ -97,14 +103,14 @@ impl<const N: usize> FreeU32List<N> {
 #[test]
 fn test_basics() {
     let l: FreeU32List<2> = FreeU32List::new();
-    let val_1 = l.pop().unwrap();
-    let val_2 = l.pop().unwrap();
-    assert!(l.pop().is_none());
-    unsafe { l.push(val_1) };
-    let val_3 = l.pop().unwrap();
+    let val_1 = l.alloc().unwrap();
+    let val_2 = l.alloc().unwrap();
+    assert!(l.alloc().is_none());
+    unsafe { l.free(val_1) };
+    let val_3 = l.alloc().unwrap();
     assert_eq!(val_1, val_3);
-    unsafe { l.push(val_2) };
-    let val_4 = l.pop().unwrap();
+    unsafe { l.free(val_2) };
+    let val_4 = l.alloc().unwrap();
     assert_eq!(val_2, val_4);
 }
 
