@@ -5,6 +5,31 @@ use core::{
 };
 
 #[derive(Debug)]
+pub struct IterOccupied<'a, const N: usize> {
+    list: &'a mut FreeU32List<N>,
+    next: u32,
+}
+impl<const N: usize> Iterator for IterOccupied<'_, N> {
+    type Item = u32;
+    fn next(&mut self) -> Option<Self::Item> {
+        let curr_index = self.next;
+        let next_slot = self.list.next.get(usize::try_from(curr_index).unwrap())?;
+        self.next = next_slot.load(Ordering::Relaxed);
+        Some(curr_index)
+    }
+}
+impl<const N: usize> FreeU32List<N> {
+    pub fn iter_occupied(&mut self) -> IterOccupied<'_, N> {
+        let head_u64 = self.head.load(Ordering::Acquire);
+        let head = u64_to_tidx(head_u64);
+        IterOccupied {
+            list: self,
+            next: head.index,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct FreeU32List<const N: usize> {
     head: AtomicU64,
     next: [AtomicU32; N],
