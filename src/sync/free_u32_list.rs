@@ -91,7 +91,7 @@ impl<const N: usize> FreeU32List<N> {
             let new_head_u64 = tidx_to_u64(new_head);
             if self
                 .head_vacant
-                .compare_exchange(head_u64, new_head_u64, Ordering::AcqRel, Ordering::Relaxed)
+                .compare_exchange(head_u64, new_head_u64, Ordering::Release, Ordering::Relaxed)
                 .is_ok()
             {
                 break;
