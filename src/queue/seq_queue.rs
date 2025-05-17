@@ -553,6 +553,9 @@ mod benches {
     use super::*;
 
     const SEG_LEN: usize = 1 << 7;
+    #[cfg(miri)]
+    const N: usize = 1 << 2;
+    #[cfg(not(miri))]
     const N: usize = 1 << 14;
     const WINDOW_SIZE: usize = 1 << 10;
 

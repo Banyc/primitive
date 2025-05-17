@@ -228,6 +228,9 @@ mod benches {
 
     use super::*;
 
+    #[cfg(miri)]
+    const N: usize = 2 << 1;
+    #[cfg(not(miri))]
     const N: usize = 2 << 16;
     const VALUE_SIZE: usize = 2 << 5;
 

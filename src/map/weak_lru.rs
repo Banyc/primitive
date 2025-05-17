@@ -185,6 +185,9 @@ mod benches {
 
     const LRU_SIZE: usize = 1 << 9;
     const DATA_SIZE: usize = 1 << 6;
+    #[cfg(miri)]
+    const N: usize = 1 << 2;
+    #[cfg(not(miri))]
     const N: usize = 1 << 12;
 
     macro_rules! weak_lru_insert {

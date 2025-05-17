@@ -8,14 +8,17 @@ mod benches {
     use crate::{
         analysis::bench::HeapRandomizer,
         map::{
+            MapInsert,
             dense_hash_map::DenseHashMap,
             grow_dense_map::GrowDenseMap,
             hash_map::{HashGet, HashRemove},
-            MapInsert,
         },
         ops::clear::Clear,
     };
 
+    #[cfg(miri)]
+    const N: usize = 2 << 1;
+    #[cfg(not(miri))]
     const N: usize = 2 << 16;
     const VALUE_SIZE: usize = 2 << 5;
     const GROW_DENSE_MAP_CHUNK_SIZE: usize = 2 << 5;
