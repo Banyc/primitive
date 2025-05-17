@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 atomic-memcpy = "0.2"
+bytemuck = "1"
 num-traits = "0.2"
 thiserror = "2"
 

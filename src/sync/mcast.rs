@@ -4,21 +4,20 @@ use core::{
 };
 use std::sync::Arc;
 
+use bytemuck::NoUninit;
+
 use crate::ops::{dyn_ref::DynRef, ring::RingSpace};
 
-use super::{
-    mutex::Mutex1,
-    seq_lock::{ContainNoUninitializedBytes, SeqLock},
-};
+use super::{mutex::Mutex1, seq_lock::SeqLock};
 
 /// - message overwriting.
 #[derive(Debug)]
 #[repr(C)]
-pub struct SpMcast<T: ContainNoUninitializedBytes, const N: usize> {
+pub struct SpMcast<T: NoUninit, const N: usize> {
     ring: [SeqLock<T>; N],
     next_pos: AtomicUsize,
 }
-impl<T: ContainNoUninitializedBytes, const N: usize> SpMcast<T, N> {
+impl<T: NoUninit, const N: usize> SpMcast<T, N> {
     pub fn new(mut init: impl FnMut(usize) -> T) -> Self {
         const {
             assert!(1 < N);
@@ -47,7 +46,7 @@ impl<T: ContainNoUninitializedBytes, const N: usize> SpMcast<T, N> {
         (next_pos, CellVer(next_ver))
     }
 }
-impl<T: ContainNoUninitializedBytes, const N: usize> SpMcast<T, N> {
+impl<T: NoUninit, const N: usize> SpMcast<T, N> {
     /// # Safety
     ///
     /// - Must only be accessed by one thread at a time.
@@ -75,7 +74,7 @@ impl<T: ContainNoUninitializedBytes, const N: usize> SpMcast<T, N> {
 }
 impl<T, const N: usize> Default for SpMcast<T, N>
 where
-    T: Default + ContainNoUninitializedBytes,
+    T: Default + NoUninit,
 {
     fn default() -> Self {
         Self::new(|_| T::default())
@@ -85,7 +84,7 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CellVer(u32);
 
-pub fn spmcast_channel<T: ContainNoUninitializedBytes, const N: usize>(
+pub fn spmcast_channel<T: NoUninit, const N: usize>(
     init: impl FnMut(usize) -> T,
 ) -> (SpMcastReader<T, N, Arc<SpMcast<T, N>>>, SpMcastWriter<T, N>) {
     let queue = SpMcast::new(init);
@@ -96,23 +95,23 @@ pub fn spmcast_channel<T: ContainNoUninitializedBytes, const N: usize>(
     (reader, writer)
 }
 #[derive(Debug)]
-pub struct SpMcastWriter<T: ContainNoUninitializedBytes, const N: usize> {
+pub struct SpMcastWriter<T: NoUninit, const N: usize> {
     queue: Arc<SpMcast<T, N>>,
 }
-impl<T: ContainNoUninitializedBytes, const N: usize> SpMcastWriter<T, N> {
+impl<T: NoUninit, const N: usize> SpMcastWriter<T, N> {
     pub fn push(&mut self, value: T) {
         unsafe { self.queue.push(value) };
     }
 }
 #[derive(Debug, Clone)]
-pub struct SpMcastReader<T: ContainNoUninitializedBytes, const N: usize, Q> {
+pub struct SpMcastReader<T: NoUninit, const N: usize, Q> {
     queue: DynRef<Q, SpMcast<T, N>>,
     next_pos: usize,
     next_ver: CellVer,
     read_once: bool,
     _item: PhantomData<T>,
 }
-impl<T: ContainNoUninitializedBytes, const N: usize, Q> SpMcastReader<T, N, Q> {
+impl<T: NoUninit, const N: usize, Q> SpMcastReader<T, N, Q> {
     pub fn new(queue: DynRef<Q, SpMcast<T, N>>) -> Self {
         let (next_pos, next_ver) = queue.convert().next_version();
         Self {
@@ -140,11 +139,11 @@ impl<T: ContainNoUninitializedBytes, const N: usize, Q> SpMcastReader<T, N, Q> {
 /// - message overwriting.
 #[derive(Debug)]
 #[repr(C)]
-pub struct MpMcast<T: ContainNoUninitializedBytes, const N: usize> {
+pub struct MpMcast<T: NoUninit, const N: usize> {
     write: Mutex1,
     queue: SpMcast<T, N>,
 }
-impl<T: ContainNoUninitializedBytes, const N: usize> MpMcast<T, N> {
+impl<T: NoUninit, const N: usize> MpMcast<T, N> {
     pub fn new(init: impl FnMut(usize) -> T) -> Self {
         let write = Mutex1::new();
         let queue = SpMcast::new(init);
@@ -154,7 +153,7 @@ impl<T: ContainNoUninitializedBytes, const N: usize> MpMcast<T, N> {
         &self.queue
     }
 }
-impl<T: ContainNoUninitializedBytes, const N: usize> MpMcast<T, N> {
+impl<T: NoUninit, const N: usize> MpMcast<T, N> {
     pub fn try_push(&self, value: T) -> bool {
         if !self.write.try_lock() {
             return false;
@@ -165,7 +164,7 @@ impl<T: ContainNoUninitializedBytes, const N: usize> MpMcast<T, N> {
     }
 }
 #[allow(clippy::type_complexity)]
-pub fn mpmcast_channel<T: ContainNoUninitializedBytes, const N: usize>(
+pub fn mpmcast_channel<T: NoUninit, const N: usize>(
     init: impl FnMut(usize) -> T,
 ) -> (MpMcastReader<T, N, Arc<MpMcast<T, N>>>, Arc<MpMcast<T, N>>) {
     let queue = MpMcast::new(init);
@@ -175,17 +174,17 @@ pub fn mpmcast_channel<T: ContainNoUninitializedBytes, const N: usize>(
     (reader, writer)
 }
 #[derive(Debug, Clone)]
-pub struct MpMcastReader<T: ContainNoUninitializedBytes, const N: usize, Q> {
+pub struct MpMcastReader<T: NoUninit, const N: usize, Q> {
     reader: SpMcastReader<T, N, DynRef<Q, MpMcast<T, N>>>,
 }
-impl<T: ContainNoUninitializedBytes, const N: usize, Q> MpMcastReader<T, N, Q> {
+impl<T: NoUninit, const N: usize, Q> MpMcastReader<T, N, Q> {
     pub fn new(queue: DynRef<Q, MpMcast<T, N>>) -> Self {
         let queue_ref = DynRef::new(queue, |q| q.convert().queue());
         let reader = SpMcastReader::new(queue_ref);
         Self { reader }
     }
 }
-impl<T: ContainNoUninitializedBytes, const N: usize, Q> MpMcastReader<T, N, Q> {
+impl<T: NoUninit, const N: usize, Q> MpMcastReader<T, N, Q> {
     pub fn pop(&mut self) -> Option<T> {
         self.reader.pop()
     }

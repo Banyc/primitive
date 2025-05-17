@@ -104,13 +104,12 @@ mod tests {
     use core::num::NonZeroUsize;
     use std::sync::mpsc;
 
+    use bytemuck::NoUninit;
+
     use crate::{
         analysis::bench::ExpMovVar,
         ops::unit::{DurationExt, HumanDuration},
-        sync::{
-            mcast::{self, spmcast_channel},
-            seq_lock::ContainNoUninitializedBytes,
-        },
+        sync::mcast,
         time::timer::Timer,
     };
 
@@ -155,7 +154,7 @@ mod tests {
             crossbeam::channel::Sender::send(self, msg).map_err(|e| e.0)
         }
     }
-    impl<T: ContainNoUninitializedBytes, const N: usize> ChanSend<T> for mcast::SpMcastWriter<T, N> {
+    impl<T: NoUninit, const N: usize> ChanSend<T> for mcast::SpMcastWriter<T, N> {
         fn send(&mut self, msg: T) -> Result<(), T> {
             mcast::SpMcastWriter::push(self, msg);
             Ok(())
@@ -194,9 +193,7 @@ mod tests {
             })
         }
     }
-    impl<T: ContainNoUninitializedBytes, const N: usize, Q> ChanRecv<T>
-        for mcast::SpMcastReader<T, N, Q>
-    {
+    impl<T: NoUninit, const N: usize, Q> ChanRecv<T> for mcast::SpMcastReader<T, N, Q> {
         fn recv(&mut self) -> Result<T, ()> {
             loop {
                 let Some(msg) = mcast::SpMcastReader::pop(self) else {
@@ -257,12 +254,12 @@ mod tests {
         let (tx, rx) = crossbeam::channel::bounded::<Instant>(0);
         bench_channel_latency(tx, rx);
     }
-    #[test]
-    #[ignore]
-    fn bench_channel_latency_spmcast() {
-        let (rx, tx) = spmcast_channel::<Instant, 2>(|_| Instant::now());
-        bench_channel_latency(tx, rx);
-    }
+    // #[test]
+    // #[ignore]
+    // fn bench_channel_latency_spmcast() {
+    //     let (rx, tx) = spmcast_channel::<Instant, 2>(|_| Instant::now());
+    //     bench_channel_latency(tx, rx);
+    // }
 
     pub struct LatencyReport {
         emvar: ExpMovVar<f64>,

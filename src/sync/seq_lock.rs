@@ -1,10 +1,8 @@
 use core::sync::atomic::{AtomicU32, Ordering, fence};
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::sync::Arc;
 
 use atomic_memcpy::{atomic_load, atomic_store};
+use bytemuck::NoUninit;
 
 use super::sync_unsafe_cell::SyncUnsafeCell;
 
@@ -12,11 +10,11 @@ use super::sync_unsafe_cell::SyncUnsafeCell;
 /// - prioritized in write
 #[derive(Debug)]
 #[repr(C)]
-pub struct SeqLock<T: ContainNoUninitializedBytes> {
+pub struct SeqLock<T: NoUninit> {
     value: SyncUnsafeCell<T>,
     version: AtomicU32,
 }
-impl<T: ContainNoUninitializedBytes> SeqLock<T> {
+impl<T: NoUninit> SeqLock<T> {
     #[must_use]
     pub const fn new(value: T) -> Self {
         Self {
@@ -57,9 +55,7 @@ impl<T: ContainNoUninitializedBytes> SeqLock<T> {
     }
 }
 
-pub fn safe_seq_lock<T: ContainNoUninitializedBytes>(
-    value: T,
-) -> (SeqLockReader<T>, SeqLockWriter<T>) {
+pub fn safe_seq_lock<T: NoUninit>(value: T) -> (SeqLockReader<T>, SeqLockWriter<T>) {
     let lock = SeqLock::new(value);
     let lock = Arc::new(lock);
     let reader = SeqLockReader {
@@ -71,50 +67,22 @@ pub fn safe_seq_lock<T: ContainNoUninitializedBytes>(
     (reader, writer)
 }
 #[derive(Debug, Clone)]
-pub struct SeqLockReader<T: ContainNoUninitializedBytes> {
+pub struct SeqLockReader<T: NoUninit> {
     lock: Arc<SeqLock<T>>,
 }
-impl<T: ContainNoUninitializedBytes> SeqLockReader<T> {
+impl<T: NoUninit> SeqLockReader<T> {
     pub fn load(&self) -> Option<T> {
         self.lock.load().map(|(x, _)| x)
     }
 }
 #[derive(Debug)]
-pub struct SeqLockWriter<T: ContainNoUninitializedBytes> {
+pub struct SeqLockWriter<T: NoUninit> {
     lock: Arc<SeqLock<T>>,
 }
-impl<T: ContainNoUninitializedBytes> SeqLockWriter<T> {
+impl<T: NoUninit> SeqLockWriter<T> {
     pub fn store(&mut self, value: T) {
         unsafe { self.lock.store(value) };
     }
-}
-
-/// # Safety
-///
-/// must not contain uninitialized bytes
-pub unsafe trait ContainNoUninitializedBytes {}
-unsafe impl ContainNoUninitializedBytes for bool {}
-unsafe impl ContainNoUninitializedBytes for u8 {}
-unsafe impl ContainNoUninitializedBytes for u16 {}
-unsafe impl ContainNoUninitializedBytes for u32 {}
-unsafe impl ContainNoUninitializedBytes for u64 {}
-unsafe impl ContainNoUninitializedBytes for u128 {}
-unsafe impl ContainNoUninitializedBytes for i8 {}
-unsafe impl ContainNoUninitializedBytes for i16 {}
-unsafe impl ContainNoUninitializedBytes for i32 {}
-unsafe impl ContainNoUninitializedBytes for i64 {}
-unsafe impl ContainNoUninitializedBytes for i128 {}
-unsafe impl ContainNoUninitializedBytes for usize {}
-unsafe impl ContainNoUninitializedBytes for isize {}
-unsafe impl ContainNoUninitializedBytes for f32 {}
-unsafe impl ContainNoUninitializedBytes for f64 {}
-unsafe impl ContainNoUninitializedBytes for Instant {}
-unsafe impl ContainNoUninitializedBytes for Duration {}
-unsafe impl<T: ContainNoUninitializedBytes> ContainNoUninitializedBytes for [T] {}
-unsafe impl<T: ContainNoUninitializedBytes> ContainNoUninitializedBytes for Option<T> {}
-unsafe impl<T: ContainNoUninitializedBytes, E: ContainNoUninitializedBytes>
-    ContainNoUninitializedBytes for Result<T, E>
-{
 }
 
 #[cfg(test)]
