@@ -110,14 +110,14 @@ where
         Q: Ord + ?Sized,
         K: Borrow<Q>,
     {
-        if let Some(btree_first) = &self.btree_first {
-            if btree_first.borrow() <= key {
-                let removed = self.btree.remove(key);
-                if btree_first.borrow() == key {
-                    self.reset_btree_first();
-                }
-                return removed;
+        if let Some(btree_first) = &self.btree_first
+            && btree_first.borrow() <= key
+        {
+            let removed = self.btree.remove(key);
+            if btree_first.borrow() == key {
+                self.reset_btree_first();
             }
+            return removed;
         }
         let index = self
             .linear

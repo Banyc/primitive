@@ -7,9 +7,9 @@ use std::{
 use crate::ops::{opt_cmp::MinNoneOptCmp, ring::RingSpace};
 
 use super::{
+    MapInsert,
     cap_map::{CapHashMap, GetOrInsert},
     hash_map::{HashGet, HashGetMut},
-    MapInsert,
 };
 
 #[derive(Debug, Clone)]
@@ -109,10 +109,10 @@ where
                 }
                 let value_index = final_value_index.unwrap();
                 let ejected_entry = self.values[value_index].take();
-                if let Some(entry) = ejected_entry {
-                    if entry.key_index != key_index {
-                        self.keys.remove_entry(entry.key_index);
-                    }
+                if let Some(entry) = ejected_entry
+                    && entry.key_index != key_index
+                {
+                    self.keys.remove_entry(entry.key_index);
                 }
                 self.values[value_index] = Some(Entry::new(value, key_index));
             }
