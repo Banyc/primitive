@@ -1,3 +1,4 @@
+pub mod free_u32_list;
 pub mod mcast;
 pub mod mutex;
 pub mod notify;
