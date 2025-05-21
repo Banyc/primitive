@@ -7,8 +7,8 @@ use super::{free_u32_list::FreeU32List, sync_unsafe_cell::SyncUnsafeCell};
 /// - ref: <https://yeet.cx/blog/lock-free-rust/>
 #[derive(Debug)]
 pub struct FreeList<T, const N: usize> {
-    slots: [SyncUnsafeCell<MaybeUninit<T>>; N],
-    free_slots: FreeU32List<N>,
+    slots: Box<[SyncUnsafeCell<MaybeUninit<T>>; N]>,
+    free_slots: Box<FreeU32List<N>>,
     leak_on_drop: bool,
 }
 impl<T, const N: usize> Drop for FreeList<T, N> {
@@ -39,8 +39,8 @@ impl<T, const N: usize> Default for FreeList<T, N> {
 impl<T, const N: usize> FreeList<T, N> {
     pub fn new() -> Self {
         Self {
-            slots: [const { SyncUnsafeCell::new(MaybeUninit::uninit()) }; N],
-            free_slots: FreeU32List::new(),
+            slots: Box::new([const { SyncUnsafeCell::new(MaybeUninit::uninit()) }; N]),
+            free_slots: Box::new(FreeU32List::new()),
             leak_on_drop: false,
         }
     }
