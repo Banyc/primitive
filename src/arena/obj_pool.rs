@@ -174,12 +174,21 @@ impl<T> Drop for ObjScoped<T> {
 mod benches {
     use super::*;
 
-    const N: usize = 2 << 18;
-    const DATA_SIZE: usize = 2;
+    #[cfg(miri)]
+    const N: usize = 2 << 2;
+    #[cfg(not(miri))]
+    const N: usize = 2 << 12;
+    const DATA_SIZE: usize = 1500;
 
-    #[derive(Default)]
     struct Data {
         _buf: [u8; DATA_SIZE],
+    }
+    impl Default for Data {
+        fn default() -> Self {
+            Self {
+                _buf: [0; DATA_SIZE],
+            }
+        }
     }
 
     #[bench]
@@ -203,7 +212,6 @@ mod benches {
     }
 
     #[bench]
-    #[cfg_attr(miri, ignore)]
     fn bench_arc_pool_scoped(bencher: &mut test::Bencher) {
         let mut in_use = vec![];
         let pool = arc_buf_pool(None, NonZeroUsize::new(4).unwrap());
@@ -220,7 +228,6 @@ mod benches {
     }
 
     #[bench]
-    #[cfg_attr(miri, ignore)]
     fn bench_arc_pool(bencher: &mut test::Bencher) {
         let mut in_use = vec![];
         let pool = arc_buf_pool(None, NonZeroUsize::new(1).unwrap());
@@ -239,7 +246,6 @@ mod benches {
     }
 
     #[bench]
-    #[cfg_attr(miri, ignore)]
     fn bench_pool(bencher: &mut test::Bencher) {
         let mut in_use = vec![];
         let mut pool = buf_pool(None);
@@ -257,7 +263,6 @@ mod benches {
     }
 
     #[bench]
-    #[cfg_attr(miri, ignore)]
     fn bench_alloc(bencher: &mut test::Bencher) {
         let mut in_use = vec![];
         bencher.iter(|| {

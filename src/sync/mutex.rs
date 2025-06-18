@@ -46,13 +46,13 @@ impl<T> SpinMutex<T> {
             value: SyncUnsafeCell::new(value),
         }
     }
-    pub fn lock(&self) -> SpinMutexScoped<T> {
+    pub fn lock(&self) -> SpinMutexScoped<'_, T> {
         while !self.lock.try_lock() {
             core::hint::spin_loop();
         }
         SpinMutexScoped { mutex: self }
     }
-    pub fn try_lock(&self) -> Option<SpinMutexScoped<T>> {
+    pub fn try_lock(&self) -> Option<SpinMutexScoped<'_, T>> {
         if !self.lock.try_lock() {
             return None;
         }
