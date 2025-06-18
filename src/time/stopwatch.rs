@@ -166,6 +166,7 @@ mod tests {
         fn try_recv(&mut self) -> Result<T, TryRecvError>;
         fn recv(&mut self) -> Result<T, ()>;
     }
+    #[allow(unused)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum TryRecvError {
         Disconnected,

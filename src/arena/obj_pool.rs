@@ -179,6 +179,7 @@ mod benches {
     #[cfg(not(miri))]
     const N: usize = 2 << 12;
     const DATA_SIZE: usize = 1500;
+    const CONCURRENCY: usize = 2;
 
     struct Data {
         _buf: [u8; DATA_SIZE],
@@ -224,6 +225,27 @@ mod benches {
             for _ in 0..N {
                 in_use.pop().unwrap();
             }
+        });
+    }
+    #[bench]
+    fn bench_conc_arc_pool_scoped(bencher: &mut test::Bencher) {
+        let pool = arc_buf_pool(None, NonZeroUsize::new(16).unwrap());
+        bencher.iter(|| {
+            std::thread::scope(|s| {
+                for _ in 0..CONCURRENCY {
+                    s.spawn(|| {
+                        let mut in_use = vec![];
+                        for _ in 0..N {
+                            let mut buf = pool.take_scoped();
+                            buf.push(Data::default());
+                            in_use.push(buf);
+                        }
+                        for _ in 0..N {
+                            in_use.pop().unwrap();
+                        }
+                    });
+                }
+            });
         });
     }
 
@@ -273,6 +295,25 @@ mod benches {
             for _ in 0..N {
                 in_use.pop().unwrap();
             }
+        });
+    }
+    #[bench]
+    fn bench_conc_alloc(bencher: &mut test::Bencher) {
+        bencher.iter(|| {
+            std::thread::scope(|s| {
+                for _ in 0..CONCURRENCY {
+                    s.spawn(|| {
+                        let mut in_use = vec![];
+                        for _ in 0..N {
+                            let buf = vec![Data::default()];
+                            in_use.push(buf);
+                        }
+                        for _ in 0..N {
+                            in_use.pop().unwrap();
+                        }
+                    });
+                }
+            });
         });
     }
 }
