@@ -169,7 +169,8 @@ pub fn mpmcast_channel<T: NoUninit, const N: usize>(
 ) -> (MpMcastReader<T, N, Arc<MpMcast<T, N>>>, Arc<MpMcast<T, N>>) {
     let queue = MpMcast::new(init);
     let queue = Arc::new(queue);
-    let reader = MpMcastReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
+    let queue_ref = DynRef::new(Arc::clone(&queue), |q| q.as_ref());
+    let reader = MpMcastReader::new(queue_ref);
     let writer = queue;
     (reader, writer)
 }
@@ -277,7 +278,8 @@ mod tests {
     fn test_mpmcast<const QUEUE_SIZE: usize>(
         queue: Arc<MpMcast<RepeatedData<usize, DATA_COUNT>, QUEUE_SIZE>>,
     ) {
-        let rdr = MpMcastReader::new(DynRef::new(queue.clone(), |q| q.as_ref()));
+        let queue_ref = DynRef::new(Arc::clone(&queue), |q| q.as_ref());
+        let rdr = MpMcastReader::new(queue_ref);
         let wtr = queue;
         let mut threads = vec![];
         for _ in 0..THREADS {
